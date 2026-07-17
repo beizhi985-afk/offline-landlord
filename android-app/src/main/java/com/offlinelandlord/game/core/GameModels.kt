@@ -1,0 +1,108 @@
+package com.offlinelandlord.game.core
+
+import kotlinx.serialization.Serializable
+
+@Serializable
+enum class GamePhase {
+    WAITING,
+    BIDDING,
+    PLAYING,
+    FINISHED,
+}
+
+@Serializable
+enum class PlayerRole {
+    UNKNOWN,
+    LANDLORD,
+    FARMER,
+}
+
+@Serializable
+enum class ActionType {
+    SET_READY,
+    BID,
+    PLAY,
+    PASS,
+}
+
+@Serializable
+data class PlayerAction(
+    val type: ActionType,
+    val ready: Boolean? = null,
+    val bid: Int? = null,
+    val cardIds: List<String> = emptyList(),
+) {
+    companion object {
+        fun ready(value: Boolean) = PlayerAction(ActionType.SET_READY, ready = value)
+        fun bid(value: Int) = PlayerAction(ActionType.BID, bid = value)
+        fun play(cardIds: List<String>) = PlayerAction(ActionType.PLAY, cardIds = cardIds)
+        fun pass() = PlayerAction(ActionType.PASS)
+    }
+}
+
+@Serializable
+data class PlayerSummary(
+    val id: String,
+    val name: String,
+    val seat: Int,
+    val ready: Boolean,
+    val connected: Boolean,
+    val role: PlayerRole,
+    val remainingCards: Int,
+    val score: Int,
+    val bid: Int? = null,
+)
+
+@Serializable
+data class PublicPlay(
+    val playerId: String,
+    val cards: List<Card>,
+    val pattern: CardPattern,
+)
+
+@Serializable
+data class RoundResult(
+    val winnerRole: PlayerRole,
+    val winnerPlayerId: String,
+    val multiplier: Int,
+    val spring: Boolean,
+    val scoreChanges: Map<String, Int>,
+)
+
+@Serializable
+data class PlayerGameView(
+    val roomCode: String,
+    val roomName: String,
+    val selfPlayerId: String,
+    val hostPlayerId: String,
+    val phase: GamePhase,
+    val players: List<PlayerSummary>,
+    val ownHand: List<Card>,
+    val bottomCards: List<Card>,
+    val landlordId: String? = null,
+    val currentTurnId: String? = null,
+    val lastPlay: PublicPlay? = null,
+    val highestBid: Int = 0,
+    val multiplier: Int = 1,
+    val result: RoundResult? = null,
+    val revision: Long = 0,
+    val statusMessage: String = "",
+)
+
+data class ActionResult(
+    val success: Boolean,
+    val message: String,
+) {
+    companion object {
+        fun ok(message: String = "") = ActionResult(true, message)
+        fun error(message: String) = ActionResult(false, message)
+    }
+}
+
+data class JoinOutcome(
+    val success: Boolean,
+    val playerId: String? = null,
+    val resumeToken: String? = null,
+    val message: String = "",
+)
+

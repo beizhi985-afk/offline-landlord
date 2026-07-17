@@ -1,0 +1,17 @@
+.gradle/
+**/build/
+local.properties
+.idea/
+*.iml
+captures/
+.externalNativeBuild/
+.cxx/
+*.apk
+*.aab
+*.jks
+*.keystore
+
+# Obsidian workspace state is machine-specific.
+.obsidian/workspace.json
+.obsidian/workspace-mobile.json
+
