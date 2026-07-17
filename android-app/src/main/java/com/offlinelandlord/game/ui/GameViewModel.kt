@@ -117,6 +117,12 @@ class GameViewModel : ViewModel() {
 
     fun pass() = sendAction(PlayerAction.pass())
 
+    fun addBot() = sendAction(PlayerAction.addBot())
+
+    fun removeBot(playerId: String? = null) = sendAction(PlayerAction.removeBot(playerId))
+
+    fun setAutoPlay(enabled: Boolean) = sendAction(PlayerAction.autoPlay(enabled))
+
     fun dismissError() {
         _uiState.update { it.copy(errorMessage = null) }
     }
@@ -151,4 +157,3 @@ class GameViewModel : ViewModel() {
         super.onCleared()
     }
 }
-

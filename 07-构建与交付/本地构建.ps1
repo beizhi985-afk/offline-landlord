@@ -43,12 +43,12 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 $sourceApk = Join-Path $repoRoot "android-app\build\outputs\apk\debug\android-app-debug.apk"
-$existingDeliveryApk = Get-ChildItem -LiteralPath $PSScriptRoot -Filter "*-v0.1.0-debug.apk" |
+$existingDeliveryApk = Get-ChildItem -LiteralPath $PSScriptRoot -Filter "*-v0.2.0-bot-debug.apk" |
     Select-Object -First 1
 if ($null -ne $existingDeliveryApk) {
     $deliveryApk = $existingDeliveryApk.FullName
 } else {
-    $deliveryApk = Join-Path $PSScriptRoot "offline-landlord-v0.1.0-debug.apk"
+    $deliveryApk = Join-Path $PSScriptRoot "offline-landlord-v0.2.0-bot-debug.apk"
 }
 Copy-Item -LiteralPath $sourceApk -Destination $deliveryApk -Force
 

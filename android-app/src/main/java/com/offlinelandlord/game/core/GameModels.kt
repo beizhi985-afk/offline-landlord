@@ -23,6 +23,9 @@ enum class ActionType {
     BID,
     PLAY,
     PASS,
+    ADD_BOT,
+    REMOVE_BOT,
+    SET_AUTOPLAY,
 }
 
 @Serializable
@@ -31,12 +34,17 @@ data class PlayerAction(
     val ready: Boolean? = null,
     val bid: Int? = null,
     val cardIds: List<String> = emptyList(),
+    val targetPlayerId: String? = null,
+    val autoPlay: Boolean? = null,
 ) {
     companion object {
         fun ready(value: Boolean) = PlayerAction(ActionType.SET_READY, ready = value)
         fun bid(value: Int) = PlayerAction(ActionType.BID, bid = value)
         fun play(cardIds: List<String>) = PlayerAction(ActionType.PLAY, cardIds = cardIds)
         fun pass() = PlayerAction(ActionType.PASS)
+        fun addBot() = PlayerAction(ActionType.ADD_BOT)
+        fun removeBot(playerId: String? = null) = PlayerAction(ActionType.REMOVE_BOT, targetPlayerId = playerId)
+        fun autoPlay(value: Boolean) = PlayerAction(ActionType.SET_AUTOPLAY, autoPlay = value)
     }
 }
 
@@ -51,6 +59,8 @@ data class PlayerSummary(
     val remainingCards: Int,
     val score: Int,
     val bid: Int? = null,
+    val isBot: Boolean = false,
+    val isAutoPlaying: Boolean = false,
 )
 
 @Serializable
@@ -105,4 +115,3 @@ data class JoinOutcome(
     val resumeToken: String? = null,
     val message: String = "",
 )
-

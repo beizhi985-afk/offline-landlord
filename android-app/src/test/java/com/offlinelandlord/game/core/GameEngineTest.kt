@@ -64,5 +64,19 @@ class GameEngineTest {
         assertEquals(17, view.ownHand.size)
         assertTrue(view.players.all { it.remainingCards == 17 })
     }
-}
 
+    @Test
+    fun onlyHostCanManageBotsAndBotsAreReadyImmediately() {
+        val engine = GameEngine("123456", "测试房间", "房主", Random(9))
+        val second = engine.join("玩家二").playerId!!
+        assertFalse(engine.applyAction(second, PlayerAction.addBot()).success)
+        assertTrue(engine.applyAction(engine.hostPlayerId, PlayerAction.addBot()).success)
+
+        val waiting = requireNotNull(engine.viewFor(engine.hostPlayerId))
+        val bot = waiting.players.single { it.isBot }
+        assertTrue(bot.ready)
+        assertTrue(bot.isAutoPlaying)
+        assertTrue(engine.applyAction(engine.hostPlayerId, PlayerAction.removeBot(bot.id)).success)
+        assertEquals(2, requireNotNull(engine.viewFor(engine.hostPlayerId)).players.size)
+    }
+}

@@ -105,9 +105,9 @@ private fun HomeScreen(state: AppUiState, viewModel: GameViewModel) {
             modifier = Modifier.weight(0.9f).fillMaxHeight(),
             verticalArrangement = Arrangement.Center,
         ) {
-            Text("离线斗地主", fontSize = 34.sp, fontWeight = FontWeight.Black, color = Color(0xFFFFD166))
+            Text("离线斗地主 V2", fontSize = 34.sp, fontWeight = FontWeight.Black, color = Color(0xFFFFD166))
             Spacer(Modifier.height(8.dp))
-            Text("三台安卓手机 · 同一热点 · 不需要互联网", fontSize = 16.sp)
+            Text("真人或机器人补位 · 同一热点 · 不需要互联网", fontSize = 16.sp)
             Spacer(Modifier.height(24.dp))
             OutlinedTextField(
                 value = playerName,
@@ -228,6 +228,7 @@ private fun DiscoveredRoomRow(room: DiscoveredRoom, onJoin: () -> Unit) {
 private fun LobbyScreen(state: AppUiState, viewModel: GameViewModel) {
     val view = state.gameView ?: return
     val self = view.players.first { it.id == view.selfPlayerId }
+    val bots = view.players.filter { it.isBot }
     Column(
         modifier = Modifier.fillMaxSize().background(Color(0xFF0B5133)).padding(22.dp),
     ) {
@@ -254,6 +255,19 @@ private fun LobbyScreen(state: AppUiState, viewModel: GameViewModel) {
         Spacer(Modifier.height(16.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(view.statusMessage, modifier = Modifier.weight(1f), color = Color(0xFFC9DDCF))
+            if (state.isHost) {
+                OutlinedButton(
+                    onClick = viewModel::addBot,
+                    enabled = view.players.size < 3,
+                ) { Text("添加机器人") }
+                if (bots.isNotEmpty()) {
+                    Spacer(Modifier.width(8.dp))
+                    OutlinedButton(onClick = { viewModel.removeBot(bots.last().id) }) {
+                        Text("移除机器人")
+                    }
+                }
+                Spacer(Modifier.width(12.dp))
+            }
             Button(
                 onClick = { viewModel.setReady(!self.ready) },
                 colors = if (self.ready) ButtonDefaults.buttonColors(containerColor = Color(0xFF8A5A00)) else ButtonDefaults.buttonColors(),
@@ -279,11 +293,26 @@ private fun PlayerSeatCard(player: PlayerSummary?, modifier: Modifier = Modifier
             if (player == null) {
                 Text("等待玩家", fontSize = 18.sp, color = Color(0xFF9EBBAB))
             } else {
-                Text(if (player.seat == 0) "房主" else "玩家 ${player.seat + 1}", color = Color(0xFFFFD166))
+                Text(
+                    when {
+                        player.isBot -> "机器人座位"
+                        player.seat == 0 -> "房主"
+                        else -> "玩家 ${player.seat + 1}"
+                    },
+                    color = Color(0xFFFFD166),
+                )
                 Spacer(Modifier.height(10.dp))
                 Text(player.name, fontSize = 24.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(10.dp))
-                Text(if (player.connected) "已连接" else "已断线", color = if (player.connected) Color(0xFF8BD3A9) else Color(0xFFFF8A80))
+                Text(
+                    when {
+                        player.isBot -> "本机离线机器人"
+                        player.isAutoPlaying -> "机器人代打中"
+                        player.connected -> "已连接"
+                        else -> "已断线"
+                    },
+                    color = if (player.connected || player.isBot || player.isAutoPlaying) Color(0xFF8BD3A9) else Color(0xFFFF8A80),
+                )
                 Text(if (player.ready) "已准备" else "未准备", fontWeight = FontWeight.Bold)
             }
         }
@@ -305,10 +334,16 @@ private fun GameTableScreen(state: AppUiState, viewModel: GameViewModel) {
         modifier = Modifier.fillMaxSize().background(Color(0xFF0B5133)).padding(horizontal = 16.dp, vertical = 10.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("房间 ${view.roomCode}", fontWeight = FontWeight.Bold, color = Color(0xFFFFD166))
+            Text("V2 · 房间 ${view.roomCode}", fontWeight = FontWeight.Bold, color = Color(0xFFFFD166))
             Spacer(Modifier.width(12.dp))
             Text("倍数 ×${view.multiplier}")
             Spacer(Modifier.weight(1f))
+            if (view.phase == GamePhase.BIDDING || view.phase == GamePhase.PLAYING) {
+                OutlinedButton(onClick = { viewModel.setAutoPlay(!self.isAutoPlaying) }) {
+                    Text(if (self.isAutoPlaying) "取消托管" else "托管")
+                }
+                Spacer(Modifier.width(8.dp))
+            }
             ConnectionBadge(state.connectionState)
             Spacer(Modifier.width(10.dp))
             OutlinedButton(onClick = viewModel::leaveRoom) { Text("退出") }
@@ -368,7 +403,7 @@ private fun GameTableScreen(state: AppUiState, viewModel: GameViewModel) {
                     CardFace(
                         card = card,
                         selected = card.id in selectedIds,
-                        enabled = view.phase == GamePhase.PLAYING,
+                        enabled = view.phase == GamePhase.PLAYING && !self.isAutoPlaying,
                         onClick = {
                             selectedIds = if (card.id in selectedIds) selectedIds - card.id else selectedIds + card.id
                         },
@@ -385,12 +420,12 @@ private fun GameTableScreen(state: AppUiState, viewModel: GameViewModel) {
                             viewModel.play(selectedIds.toList())
                             selectedIds = emptySet()
                         },
-                        enabled = view.currentTurnId == view.selfPlayerId && selectedIds.isNotEmpty(),
+                        enabled = view.currentTurnId == view.selfPlayerId && selectedIds.isNotEmpty() && !self.isAutoPlaying,
                         modifier = Modifier.fillMaxWidth(),
                     ) { Text("出牌") }
                     OutlinedButton(
                         onClick = viewModel::pass,
-                        enabled = view.currentTurnId == view.selfPlayerId && view.lastPlay != null,
+                        enabled = view.currentTurnId == view.selfPlayerId && view.lastPlay != null && !self.isAutoPlaying,
                         modifier = Modifier.fillMaxWidth(),
                     ) { Text("不出") }
                 }
@@ -401,7 +436,8 @@ private fun GameTableScreen(state: AppUiState, viewModel: GameViewModel) {
 
 @Composable
 private fun BiddingControls(view: PlayerGameView, viewModel: GameViewModel) {
-    val isTurn = view.currentTurnId == view.selfPlayerId
+    val self = view.players.firstOrNull { it.id == view.selfPlayerId }
+    val isTurn = view.currentTurnId == view.selfPlayerId && self?.isAutoPlaying != true
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         (0..3).forEach { value ->
             OutlinedButton(
@@ -447,7 +483,11 @@ private fun OpponentPanel(player: PlayerSummary?, currentTurnId: String?) {
             Text(roleText(player.role), color = Color(0xFFFFD166), fontSize = 12.sp)
             Text("${player.remainingCards} 张", fontSize = 28.sp, fontWeight = FontWeight.Black)
             Text("积分 ${player.score}", fontSize = 12.sp)
-            if (!player.connected) Text("断线", color = Color(0xFFFF8A80), fontWeight = FontWeight.Bold)
+            when {
+                player.isBot -> Text("机器人", color = Color(0xFF8BD3A9), fontWeight = FontWeight.Bold)
+                player.isAutoPlaying -> Text("托管中", color = Color(0xFFFFD166), fontWeight = FontWeight.Bold)
+                !player.connected -> Text("断线", color = Color(0xFFFF8A80), fontWeight = FontWeight.Bold)
+            }
         }
     }
 }

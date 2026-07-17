@@ -106,6 +106,7 @@ class LanGameClient : Closeable {
             send(
                 WireEnvelope(
                     type = WireType.JOIN,
+                    protocolVersion = WIRE_PROTOCOL_VERSION,
                     requestId = requestId,
                     playerName = playerName,
                     roomCode = roomCode,
@@ -116,6 +117,7 @@ class LanGameClient : Closeable {
             val response = wireJson.decodeFromString(WireEnvelope.serializer(), responseLine)
             if (response.type == WireType.ERROR) error(response.message ?: "加入房间失败")
             if (response.type != WireType.JOIN_ACCEPTED) error("房主返回了未知响应")
+            if (response.protocolVersion != WIRE_PROTOCOL_VERSION) error("房间版本不兼容，请使用离线斗地主 V2")
 
             playerId = response.playerId ?: error("房主没有分配玩家编号")
             resumeToken = response.resumeToken ?: error("房主没有分配恢复令牌")
@@ -145,7 +147,7 @@ class LanGameClient : Closeable {
                             _lastError.value = envelope.message
                             envelope.view?.let { _viewState.value = it }
                         }
-                        WireType.PING -> send(WireEnvelope(WireType.PONG, envelope.requestId))
+                        WireType.PING -> send(WireEnvelope(WireType.PONG, requestId = envelope.requestId))
                         else -> Unit
                     }
                 }
@@ -197,4 +199,3 @@ class LanGameClient : Closeable {
         scope.cancel()
     }
 }
-

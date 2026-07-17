@@ -106,6 +106,10 @@ class LanGameServer(
                 connection.send(WireEnvelope(WireType.ERROR, message = "房间码不正确"))
                 return
             }
+            if (joinEnvelope.protocolVersion != WIRE_PROTOCOL_VERSION) {
+                connection.send(WireEnvelope(WireType.ERROR, message = "房间版本不兼容，请安装离线斗地主 V2"))
+                return
+            }
 
             val outcome = onJoin(joinEnvelope.playerName.orEmpty(), joinEnvelope.resumeToken)
             if (!outcome.success || outcome.playerId == null || outcome.resumeToken == null) {
@@ -120,6 +124,7 @@ class LanGameServer(
             connection.send(
                 WireEnvelope(
                     type = WireType.JOIN_ACCEPTED,
+                    protocolVersion = WIRE_PROTOCOL_VERSION,
                     requestId = joinEnvelope.requestId,
                     playerId = playerId,
                     resumeToken = outcome.resumeToken,
@@ -142,7 +147,7 @@ class LanGameServer(
                     WireType.ACTION -> {
                         val action = envelope.action
                         if (action == null) {
-                            connection.send(WireEnvelope(WireType.ERROR, envelope.requestId, message = "缺少操作内容"))
+                            connection.send(WireEnvelope(WireType.ERROR, requestId = envelope.requestId, message = "缺少操作内容"))
                             continue
                         }
                         val actionResult = onAction(playerId, action, envelope.expectedRevision)
@@ -157,7 +162,7 @@ class LanGameServer(
                             )
                         }
                     }
-                    WireType.PING -> connection.send(WireEnvelope(WireType.PONG, envelope.requestId))
+                    WireType.PING -> connection.send(WireEnvelope(WireType.PONG, requestId = envelope.requestId))
                     else -> Unit
                 }
             }

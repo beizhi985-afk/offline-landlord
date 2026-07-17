@@ -15,8 +15,10 @@ class GameEngine(
         val resumeToken: String,
         var name: String,
         val seat: Int,
+        val isBot: Boolean = false,
         var ready: Boolean = false,
         var connected: Boolean = true,
+        var autoPlaying: Boolean = false,
         var role: PlayerRole = PlayerRole.UNKNOWN,
         val hand: MutableList<Card> = mutableListOf(),
         var score: Int = 0,
@@ -56,6 +58,7 @@ class GameEngine(
             val existing = players.firstOrNull { it.resumeToken == resumeToken }
             if (existing != null) {
                 existing.connected = true
+                existing.autoPlaying = false
                 existing.name = normalizedName
                 statusMessage = "${existing.name} 已重新连接"
                 revision++
@@ -67,7 +70,9 @@ class GameEngine(
             return JoinOutcome(false, message = "房间已满或牌局已经开始")
         }
 
-        val player = createPlayer(normalizedName, players.size)
+        val freeSeat = (0..2).firstOrNull { seat -> players.none { it.seat == seat } }
+            ?: return JoinOutcome(false, message = "房间已满")
+        val player = createPlayer(normalizedName, freeSeat)
         players += player
         statusMessage = "${player.name} 加入房间"
         revision++
@@ -96,6 +101,9 @@ class GameEngine(
             ActionType.BID -> bid(player, action.bid ?: -1)
             ActionType.PLAY -> play(player, action.cardIds)
             ActionType.PASS -> pass(player)
+            ActionType.ADD_BOT -> addBot(player)
+            ActionType.REMOVE_BOT -> removeBot(player, action.targetPlayerId)
+            ActionType.SET_AUTOPLAY -> setAutoPlay(player, action.autoPlay ?: true)
         }
     }
 
@@ -120,6 +128,8 @@ class GameEngine(
                     remainingCards = player.hand.size,
                     score = player.score,
                     bid = player.bid,
+                    isBot = player.isBot,
+                    isAutoPlaying = player.autoPlaying,
                 )
             },
             ownHand = self.hand.sortedWith(cardComparator),
@@ -138,6 +148,26 @@ class GameEngine(
     @Synchronized
     fun playerIds(): List<String> = players.map { it.id }
 
+    @Synchronized
+    fun automatedPlayerId(): String? {
+        if (phase != GamePhase.BIDDING && phase != GamePhase.PLAYING) return null
+        val current = players.firstOrNull { it.id == currentTurnId } ?: return null
+        return current.id.takeIf { current.isBot || current.autoPlaying }
+    }
+
+    @Synchronized
+    fun enableAutoPlay(playerId: String): ActionResult {
+        val player = players.firstOrNull { it.id == playerId }
+            ?: return ActionResult.error("玩家不存在")
+        if (player.isBot) return ActionResult.ok()
+        if (player.connected) return ActionResult.error("玩家已经重新连接")
+        player.autoPlaying = true
+        if (phase == GamePhase.WAITING || phase == GamePhase.FINISHED) player.ready = true
+        statusMessage = "${player.name} 已断线，机器人开始代打"
+        revision++
+        return ActionResult.ok(statusMessage)
+    }
+
     private fun setReady(player: PlayerState, ready: Boolean): ActionResult {
         if (phase != GamePhase.WAITING && phase != GamePhase.FINISHED) {
             return ActionResult.error("牌局进行中，不能修改准备状态")
@@ -146,10 +176,60 @@ class GameEngine(
         statusMessage = if (ready) "${player.name} 已准备" else "${player.name} 取消准备"
         revision++
 
-        if (players.size == 3 && players.all { it.ready && it.connected }) {
+        startRoundIfReady()
+        return ActionResult.ok(statusMessage)
+    }
+
+    private fun addBot(requester: PlayerState): ActionResult {
+        if (requester.id != hostPlayerId) return ActionResult.error("只有房主可以添加机器人")
+        if (phase != GamePhase.WAITING) return ActionResult.error("只能在等待房间中添加机器人")
+        if (players.size >= 3) return ActionResult.error("房间已经满了")
+        val freeSeat = (0..2).first { seat -> players.none { it.seat == seat } }
+        val botNumber = players.count { it.isBot } + 1
+        val bot = createPlayer("机器人$botNumber", freeSeat, isBot = true).apply {
+            ready = true
+            autoPlaying = true
+        }
+        players += bot
+        statusMessage = "${bot.name} 已加入并准备"
+        revision++
+        startRoundIfReady()
+        return ActionResult.ok(statusMessage)
+    }
+
+    private fun removeBot(requester: PlayerState, targetPlayerId: String?): ActionResult {
+        if (requester.id != hostPlayerId) return ActionResult.error("只有房主可以移除机器人")
+        if (phase != GamePhase.WAITING) return ActionResult.error("只能在等待房间中移除机器人")
+        val bot = if (targetPlayerId == null) {
+            players.filter { it.isBot }.maxByOrNull { it.seat }
+        } else {
+            players.firstOrNull { it.id == targetPlayerId && it.isBot }
+        } ?: return ActionResult.error("房间中没有可移除的机器人")
+        players.remove(bot)
+        statusMessage = "${bot.name} 已离开房间"
+        revision++
+        return ActionResult.ok(statusMessage)
+    }
+
+    private fun setAutoPlay(player: PlayerState, enabled: Boolean): ActionResult {
+        if (player.isBot) return ActionResult.error("机器人座位始终由机器人控制")
+        player.autoPlaying = enabled
+        statusMessage = if (enabled) {
+            "${player.name} 开启托管"
+        } else {
+            "${player.name} 取消托管"
+        }
+        revision++
+        return ActionResult.ok(statusMessage)
+    }
+
+    private fun startRoundIfReady() {
+        if (
+            players.size == 3 &&
+            players.all { it.ready && (it.connected || it.isBot || it.autoPlaying) }
+        ) {
             startRound()
         }
-        return ActionResult.ok(statusMessage)
     }
 
     private fun startRound() {
@@ -298,7 +378,7 @@ class GameEngine(
         result = RoundResult(winnerRole, winner.id, multiplier, spring, changes)
         phase = GamePhase.FINISHED
         currentTurnId = null
-        players.forEach { it.ready = false }
+        players.forEach { it.ready = it.isBot || it.autoPlaying }
         startingBidderSeat = (startingBidderSeat + 1) % 3
         statusMessage = if (winnerRole == PlayerRole.LANDLORD) "地主获胜" else "农民获胜"
         revision++
@@ -311,11 +391,11 @@ class GameEngine(
 
     private fun playerAtSeat(seat: Int): PlayerState = players.single { it.seat == seat }
 
-    private fun createPlayer(name: String, seat: Int): PlayerState = PlayerState(
+    private fun createPlayer(name: String, seat: Int, isBot: Boolean = false): PlayerState = PlayerState(
         id = UUID.randomUUID().toString(),
         resumeToken = UUID.randomUUID().toString(),
         name = name,
         seat = seat,
+        isBot = isBot,
     )
 }
-

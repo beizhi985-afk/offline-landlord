@@ -19,6 +19,7 @@ enum class WireType {
 @Serializable
 data class WireEnvelope(
     val type: WireType,
+    val protocolVersion: Int = 0,
     val requestId: String = "",
     val playerId: String? = null,
     val playerName: String? = null,
@@ -35,3 +36,4 @@ internal val wireJson = Json {
     ignoreUnknownKeys = true
 }
 
+internal const val WIRE_PROTOCOL_VERSION = 2
