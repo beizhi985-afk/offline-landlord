@@ -50,4 +50,42 @@ class BotSimulationTest {
         assertTrue(summary.connected)
         assertFalse(summary.isAutoPlaying)
     }
+
+    @Test
+    fun twelveRoundMatchStopsAfterConfiguredRoundCount() {
+        val engine = GameEngine(
+            roomCode = "123456",
+            roomName = "十二局测试",
+            hostName = "房主",
+            random = Random(21),
+            totalRounds = 12,
+            doublingEnabled = true,
+        )
+        assertTrue(engine.applyAction(engine.hostPlayerId, PlayerAction.addBot()).success)
+        assertTrue(engine.applyAction(engine.hostPlayerId, PlayerAction.addBot()).success)
+        assertTrue(engine.applyAction(engine.hostPlayerId, PlayerAction.autoPlay(true)).success)
+        assertTrue(engine.applyAction(engine.hostPlayerId, PlayerAction.ready(true)).success)
+
+        var actionCount = 0
+        while (true) {
+            val hostView = requireNotNull(engine.viewFor(engine.hostPlayerId))
+            if (hostView.matchComplete) break
+            if (hostView.phase == GamePhase.FINISHED) {
+                assertTrue(engine.applyAction(engine.hostPlayerId, PlayerAction.ready(true)).success)
+                continue
+            }
+            val automatedId = requireNotNull(engine.automatedPlayerId())
+            val playerView = requireNotNull(engine.viewFor(automatedId))
+            val action = requireNotNull(BotBrain.chooseAction(playerView))
+            assertTrue(engine.applyAction(automatedId, action).success)
+            assertTrue("十二局对战操作次数异常", ++actionCount < 7_200)
+        }
+
+        val completed = requireNotNull(engine.viewFor(engine.hostPlayerId))
+        assertEquals(GamePhase.FINISHED, completed.phase)
+        assertEquals(12, completed.completedRounds)
+        assertEquals(12, completed.currentRound)
+        assertTrue(completed.matchComplete)
+        assertFalse(engine.applyAction(engine.hostPlayerId, PlayerAction.ready(true)).success)
+    }
 }

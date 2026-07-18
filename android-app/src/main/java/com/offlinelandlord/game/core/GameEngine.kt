@@ -9,6 +9,8 @@ class GameEngine(
     val roomName: String,
     hostName: String,
     private val random: Random = Random.Default,
+    private val totalRounds: Int = 12,
+    private val doublingEnabled: Boolean = true,
 ) {
     private data class PlayerState(
         val id: String,
@@ -23,6 +25,7 @@ class GameEngine(
         val hand: MutableList<Card> = mutableListOf(),
         var score: Int = 0,
         var bid: Int? = null,
+        var doubleChoice: Boolean? = null,
         var successfulPlayCount: Int = 0,
     )
 
@@ -38,6 +41,7 @@ class GameEngine(
     private var highestBidderId: String? = null
     private var startingBidderSeat = 0
     private var multiplier = 1
+    private var completedRounds = 0
     private var result: RoundResult? = null
     private var revision = 0L
     private var statusMessage = "等待三名玩家加入"
@@ -45,6 +49,7 @@ class GameEngine(
     val hostPlayerId: String
 
     init {
+        require(totalRounds == 12 || totalRounds == 24) { "局数只能是 12 或 24" }
         val host = createPlayer(hostName.ifBlank { "房主" }, seat = 0)
         players += host
         hostPlayerId = host.id
@@ -99,6 +104,7 @@ class GameEngine(
         return when (action.type) {
             ActionType.SET_READY -> setReady(player, action.ready ?: true)
             ActionType.BID -> bid(player, action.bid ?: -1)
+            ActionType.DOUBLE -> chooseDouble(player, action.doubleChoice ?: false)
             ActionType.PLAY -> play(player, action.cardIds)
             ActionType.PASS -> pass(player)
             ActionType.ADD_BOT -> addBot(player)
@@ -110,7 +116,12 @@ class GameEngine(
     @Synchronized
     fun viewFor(playerId: String): PlayerGameView? {
         val self = players.firstOrNull { it.id == playerId } ?: return null
-        val revealRoles = phase == GamePhase.PLAYING || phase == GamePhase.FINISHED
+        val revealRoles = phase == GamePhase.DOUBLING || phase == GamePhase.PLAYING || phase == GamePhase.FINISHED
+        val currentRound = when {
+            completedRounds >= totalRounds -> totalRounds
+            phase == GamePhase.FINISHED -> completedRounds.coerceAtLeast(1)
+            else -> (completedRounds + 1).coerceAtMost(totalRounds)
+        }
         return PlayerGameView(
             roomCode = roomCode,
             roomName = roomName,
@@ -128,6 +139,7 @@ class GameEngine(
                     remainingCards = player.hand.size,
                     score = player.score,
                     bid = player.bid,
+                    doubleChoice = player.doubleChoice,
                     isBot = player.isBot,
                     isAutoPlaying = player.autoPlaying,
                 )
@@ -139,6 +151,11 @@ class GameEngine(
             lastPlay = lastPlay,
             highestBid = highestBid,
             multiplier = multiplier,
+            totalRounds = totalRounds,
+            currentRound = currentRound,
+            completedRounds = completedRounds,
+            doublingEnabled = doublingEnabled,
+            matchComplete = completedRounds >= totalRounds,
             result = result,
             revision = revision,
             statusMessage = statusMessage,
@@ -150,7 +167,7 @@ class GameEngine(
 
     @Synchronized
     fun automatedPlayerId(): String? {
-        if (phase != GamePhase.BIDDING && phase != GamePhase.PLAYING) return null
+        if (phase != GamePhase.BIDDING && phase != GamePhase.DOUBLING && phase != GamePhase.PLAYING) return null
         val current = players.firstOrNull { it.id == currentTurnId } ?: return null
         return current.id.takeIf { current.isBot || current.autoPlaying }
     }
@@ -162,7 +179,9 @@ class GameEngine(
         if (player.isBot) return ActionResult.ok()
         if (player.connected) return ActionResult.error("玩家已经重新连接")
         player.autoPlaying = true
-        if (phase == GamePhase.WAITING || phase == GamePhase.FINISHED) player.ready = true
+        if (phase == GamePhase.WAITING || (phase == GamePhase.FINISHED && completedRounds < totalRounds)) {
+            player.ready = true
+        }
         statusMessage = "${player.name} 已断线，机器人开始代打"
         revision++
         return ActionResult.ok(statusMessage)
@@ -172,6 +191,7 @@ class GameEngine(
         if (phase != GamePhase.WAITING && phase != GamePhase.FINISHED) {
             return ActionResult.error("牌局进行中，不能修改准备状态")
         }
+        if (completedRounds >= totalRounds) return ActionResult.error("本场 $totalRounds 局已经完成")
         player.ready = ready
         statusMessage = if (ready) "${player.name} 已准备" else "${player.name} 取消准备"
         revision++
@@ -224,6 +244,7 @@ class GameEngine(
     }
 
     private fun startRoundIfReady() {
+        if (completedRounds >= totalRounds) return
         if (
             players.size == 3 &&
             players.all { it.ready && (it.connected || it.isBot || it.autoPlaying) }
@@ -238,6 +259,7 @@ class GameEngine(
             it.role = PlayerRole.UNKNOWN
             it.hand.clear()
             it.bid = null
+            it.doubleChoice = null
             it.successfulPlayCount = 0
         }
 
@@ -298,9 +320,33 @@ class GameEngine(
         landlord.hand.sortWith(cardComparator)
         multiplier = max(1, highestBid)
         currentTurnId = landlord.id
-        phase = GamePhase.PLAYING
-        statusMessage = "${landlord.name} 成为地主"
+        phase = if (doublingEnabled) GamePhase.DOUBLING else GamePhase.PLAYING
+        statusMessage = if (doublingEnabled) {
+            "${landlord.name} 成为地主，请选择是否加倍"
+        } else {
+            "${landlord.name} 成为地主"
+        }
         revision++
+    }
+
+    private fun chooseDouble(player: PlayerState, value: Boolean): ActionResult {
+        if (phase != GamePhase.DOUBLING) return ActionResult.error("当前不是加倍阶段")
+        if (currentTurnId != player.id) return ActionResult.error("还没有轮到你选择加倍")
+        if (player.doubleChoice != null) return ActionResult.error("你已经选择过是否加倍")
+
+        player.doubleChoice = value
+        if (value) multiplier *= 2
+        statusMessage = if (value) "${player.name} 选择加倍" else "${player.name} 选择不加倍"
+        revision++
+
+        if (players.all { it.doubleChoice != null }) {
+            phase = GamePhase.PLAYING
+            currentTurnId = landlordId
+            statusMessage = "加倍完成，地主领出"
+        } else {
+            currentTurnId = nextPlayer(player.id).id
+        }
+        return ActionResult.ok(statusMessage)
     }
 
     private fun play(player: PlayerState, cardIds: List<String>): ActionResult {
@@ -376,11 +422,19 @@ class GameEngine(
         }
 
         result = RoundResult(winnerRole, winner.id, multiplier, spring, changes)
+        completedRounds++
         phase = GamePhase.FINISHED
         currentTurnId = null
-        players.forEach { it.ready = it.isBot || it.autoPlaying }
+        val matchComplete = completedRounds >= totalRounds
+        players.forEach { it.ready = !matchComplete && (it.isBot || it.autoPlaying) }
         startingBidderSeat = (startingBidderSeat + 1) % 3
-        statusMessage = if (winnerRole == PlayerRole.LANDLORD) "地主获胜" else "农民获胜"
+        statusMessage = if (matchComplete) {
+            "$totalRounds 局已完成"
+        } else if (winnerRole == PlayerRole.LANDLORD) {
+            "地主获胜"
+        } else {
+            "农民获胜"
+        }
         revision++
     }
 

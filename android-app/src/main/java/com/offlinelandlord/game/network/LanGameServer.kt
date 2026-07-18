@@ -107,7 +107,7 @@ class LanGameServer(
                 return
             }
             if (joinEnvelope.protocolVersion != WIRE_PROTOCOL_VERSION) {
-                connection.send(WireEnvelope(WireType.ERROR, message = "房间版本不兼容，请安装离线斗地主 V2"))
+                connection.send(WireEnvelope(WireType.ERROR, message = "房间版本不兼容，请安装离线斗地主 V3.2"))
                 return
             }
 

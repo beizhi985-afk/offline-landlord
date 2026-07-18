@@ -5,6 +5,7 @@ object BotBrain {
         if (view.currentTurnId != view.selfPlayerId) return null
         return when (view.phase) {
             GamePhase.BIDDING -> chooseBid(view)
+            GamePhase.DOUBLING -> chooseDouble(view)
             GamePhase.PLAYING -> choosePlay(view)
             else -> null
         }
@@ -30,6 +31,18 @@ object BotBrain {
             else -> 0
         }
         return PlayerAction.bid(if (desired > view.highestBid) desired else 0)
+    }
+
+    private fun chooseDouble(view: PlayerGameView): PlayerAction {
+        val grouped = view.ownHand.groupingBy { it.rank }.eachCount()
+        var strength = 0
+        strength += (grouped[Rank.BIG_JOKER] ?: 0) * 4
+        strength += (grouped[Rank.SMALL_JOKER] ?: 0) * 3
+        strength += (grouped[Rank.TWO] ?: 0) * 2
+        strength += grouped.values.count { it == 4 } * 4
+        strength += (grouped[Rank.ACE] ?: 0)
+        val roleBonus = if (self(view)?.role == PlayerRole.LANDLORD) 2 else 0
+        return PlayerAction.double(strength + roleBonus >= 8)
     }
 
     private fun choosePlay(view: PlayerGameView): PlayerAction {

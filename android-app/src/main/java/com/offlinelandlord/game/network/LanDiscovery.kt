@@ -24,12 +24,16 @@ data class DiscoveredRoom(
     val port: Int,
     val roomCode: String,
     val roomName: String,
+    val totalRounds: Int,
+    val doublingEnabled: Boolean,
 )
 
 class RoomAdvertiser(
     private val roomCode: String,
     roomName: String,
     private val tcpPort: Int,
+    private val totalRounds: Int,
+    private val doublingEnabled: Boolean,
 ) : Closeable {
     private val safeRoomName = roomName.replace('|', ' ').take(30)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -51,7 +55,7 @@ class RoomAdvertiser(
                     datagramSocket.receive(request)
                     val text = request.data.decodeToString(0, request.length)
                     if (text != DISCOVERY_REQUEST) continue
-                    val responseText = "$DISCOVERY_RESPONSE|$roomCode|$safeRoomName|$tcpPort"
+                    val responseText = "$DISCOVERY_RESPONSE|$roomCode|$safeRoomName|$tcpPort|$totalRounds|$doublingEnabled"
                     val responseBytes = responseText.encodeToByteArray()
                     datagramSocket.send(
                         DatagramPacket(responseBytes, responseBytes.size, request.address, request.port),
@@ -92,10 +96,12 @@ object RoomDiscovery {
                     val packet = DatagramPacket(buffer, buffer.size)
                     socket.receive(packet)
                     val parts = packet.data.decodeToString(0, packet.length).split('|')
-                    if (parts.size != 4 || parts[0] != DISCOVERY_RESPONSE) continue
+                    if (parts.size != 6 || parts[0] != DISCOVERY_RESPONSE) continue
                     val port = parts[3].toIntOrNull() ?: continue
+                    val totalRounds = parts[4].toIntOrNull()?.takeIf { it == 12 || it == 24 } ?: continue
+                    val doublingEnabled = parts[5].toBooleanStrictOrNull() ?: continue
                     val host = packet.address.hostAddress ?: continue
-                    val room = DiscoveredRoom(host, port, parts[1], parts[2])
+                    val room = DiscoveredRoom(host, port, parts[1], parts[2], totalRounds, doublingEnabled)
                     rooms["$host:$port:${room.roomCode}"] = room
                 } catch (_: SocketTimeoutException) {
                     // Poll until the overall deadline so multiple rooms can answer.
@@ -138,5 +144,5 @@ object LocalAddressFinder {
 }
 
 private const val DISCOVERY_PORT = 39172
-private const val DISCOVERY_REQUEST = "DDZ_DISCOVER_V2"
-private const val DISCOVERY_RESPONSE = "DDZ_HOST_V2"
+private const val DISCOVERY_REQUEST = "DDZ_DISCOVER_V3"
+private const val DISCOVERY_RESPONSE = "DDZ_HOST_V3"

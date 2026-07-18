@@ -23,9 +23,17 @@ import kotlinx.coroutines.sync.withLock
 class HostGameSession(
     hostName: String,
     roomName: String = "${hostName.ifBlank { "房主" }}的房间",
+    private val totalRounds: Int = 12,
+    private val doublingEnabled: Boolean = true,
 ) : Closeable {
     val roomCode: String = Random.nextInt(100000, 1000000).toString()
-    private val engine = GameEngine(roomCode, roomName, hostName)
+    private val engine = GameEngine(
+        roomCode = roomCode,
+        roomName = roomName,
+        hostName = hostName,
+        totalRounds = totalRounds,
+        doublingEnabled = doublingEnabled,
+    )
     private val mutex = Mutex()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val automationLock = Any()
@@ -74,7 +82,13 @@ class HostGameSession(
 
     fun start() {
         server.start()
-        advertiser = RoomAdvertiser(roomCode, engine.viewFor(hostPlayerId)?.roomName.orEmpty(), server.port).also {
+        advertiser = RoomAdvertiser(
+            roomCode = roomCode,
+            roomName = engine.viewFor(hostPlayerId)?.roomName.orEmpty(),
+            tcpPort = server.port,
+            totalRounds = totalRounds,
+            doublingEnabled = doublingEnabled,
+        ).also {
             it.start()
         }
         publish()

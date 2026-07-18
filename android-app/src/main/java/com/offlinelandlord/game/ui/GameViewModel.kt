@@ -24,10 +24,14 @@ class GameViewModel : ViewModel() {
 
     val uiState: StateFlow<AppUiState> = _uiState.asStateFlow()
 
-    fun createRoom(playerName: String) {
+    fun createRoom(playerName: String, totalRounds: Int, doublingEnabled: Boolean) {
         leaveRoom()
         runCatching {
-            HostGameSession(playerName.trim().ifBlank { "房主" }).also { session ->
+            HostGameSession(
+                hostName = playerName.trim().ifBlank { "房主" },
+                totalRounds = totalRounds,
+                doublingEnabled = doublingEnabled,
+            ).also { session ->
                 session.start()
                 hostSession = session
                 _uiState.value = AppUiState(
@@ -112,6 +116,8 @@ class GameViewModel : ViewModel() {
     fun setReady(ready: Boolean) = sendAction(PlayerAction.ready(ready))
 
     fun bid(value: Int) = sendAction(PlayerAction.bid(value))
+
+    fun chooseDouble(value: Boolean) = sendAction(PlayerAction.double(value))
 
     fun play(cardIds: List<String>) = sendAction(PlayerAction.play(cardIds))
 

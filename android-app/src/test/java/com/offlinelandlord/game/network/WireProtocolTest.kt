@@ -18,5 +18,23 @@ class WireProtocolTest {
         val decoded = wireJson.decodeFromString(WireEnvelope.serializer(), encoded)
         assertEquals(original, decoded)
     }
-}
 
+    @Test
+    fun doublingChoiceRoundTripsOnProtocolVersionThree() {
+        val original = WireEnvelope(
+            type = WireType.ACTION,
+            protocolVersion = WIRE_PROTOCOL_VERSION,
+            requestId = "double-1",
+            playerId = "player-2",
+            action = PlayerAction.double(true),
+        )
+
+        val decoded = wireJson.decodeFromString(
+            WireEnvelope.serializer(),
+            wireJson.encodeToString(WireEnvelope.serializer(), original),
+        )
+
+        assertEquals(3, decoded.protocolVersion)
+        assertEquals(true, decoded.action?.doubleChoice)
+    }
+}

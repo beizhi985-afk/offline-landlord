@@ -79,6 +79,7 @@ fun OfflineLandlordApp(viewModel: GameViewModel) {
             null -> HomeScreen(state, viewModel)
             GamePhase.WAITING -> LobbyScreen(state, viewModel)
             GamePhase.BIDDING,
+            GamePhase.DOUBLING,
             GamePhase.PLAYING,
             GamePhase.FINISHED,
             -> GameTableScreen(state, viewModel)
@@ -106,6 +107,8 @@ private fun HomeScreen(state: AppUiState, viewModel: GameViewModel) {
     var hostIp by rememberSaveable { mutableStateOf("192.168.43.1") }
     var roomCode by rememberSaveable { mutableStateOf("") }
     var portText by rememberSaveable { mutableStateOf("${state.port}") }
+    var totalRounds by rememberSaveable { mutableStateOf(12) }
+    var doublingEnabled by rememberSaveable { mutableStateOf(true) }
 
     FreshScenicBackground(
         modifier = Modifier
@@ -143,7 +146,22 @@ private fun HomeScreen(state: AppUiState, viewModel: GameViewModel) {
                     Column(Modifier.padding(16.dp)) {
                         Text("开一桌小聚", style = MaterialTheme.typography.titleLarge)
                         Text("同一热点相遇，不需要互联网", color = MutedInk, fontSize = 13.sp)
-                        Spacer(Modifier.height(10.dp))
+                        Spacer(Modifier.height(7.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(5.dp),
+                        ) {
+                            ModeChip("12局", totalRounds == 12, { totalRounds = 12 }, Modifier.weight(1f))
+                            ModeChip("24局", totalRounds == 24, { totalRounds = 24 }, Modifier.weight(1f))
+                            ModeChip(
+                                text = if (doublingEnabled) "允许加倍" else "不加倍",
+                                selected = doublingEnabled,
+                                onClick = { doublingEnabled = !doublingEnabled },
+                                modifier = Modifier.weight(1.35f),
+                                color = MintDeep,
+                            )
+                        }
+                        Spacer(Modifier.height(7.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(7.dp), verticalAlignment = Alignment.CenterVertically) {
                             OutlinedTextField(
                                 value = playerName,
@@ -155,7 +173,7 @@ private fun HomeScreen(state: AppUiState, viewModel: GameViewModel) {
                             )
                             FreshButton(
                                 text = "创建",
-                                onClick = { viewModel.createRoom(playerName) },
+                                onClick = { viewModel.createRoom(playerName, totalRounds, doublingEnabled) },
                                 enabled = !state.isBusy,
                                 modifier = Modifier.width(82.dp).height(48.dp),
                             )
@@ -238,6 +256,27 @@ private fun HomeScreen(state: AppUiState, viewModel: GameViewModel) {
 }
 
 @Composable
+private fun ModeChip(
+    text: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    color: Color = LavenderDeep,
+) {
+    Box(
+        modifier = modifier
+            .height(30.dp)
+            .clip(RoundedCornerShape(11.dp))
+            .background(if (selected) color.copy(alpha = 0.18f) else Color.White.copy(alpha = 0.46f))
+            .border(1.2.dp, color.copy(alpha = if (selected) 0.72f else 0.25f), RoundedCornerShape(11.dp))
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(text, color = if (selected) color else MutedInk, fontSize = 11.sp, fontWeight = FontWeight.Black)
+    }
+}
+
+@Composable
 private fun DiscoveredRoomRow(room: DiscoveredRoom, onJoin: () -> Unit) {
     Row(
         modifier = Modifier
@@ -251,7 +290,11 @@ private fun DiscoveredRoomRow(room: DiscoveredRoom, onJoin: () -> Unit) {
         Spacer(Modifier.width(9.dp))
         Column(Modifier.weight(1f)) {
             Text(room.roomName, fontWeight = FontWeight.Bold, maxLines = 1)
-            Text("${room.host}:${room.port} · 房间 ${room.roomCode}", fontSize = 11.sp, color = MutedInk)
+            Text(
+                "${room.host}:${room.port} · ${room.totalRounds}局 · ${if (room.doublingEnabled) "可加倍" else "不加倍"}",
+                fontSize = 11.sp,
+                color = MutedInk,
+            )
         }
         FreshOutlineButton("加入", onJoin)
     }
@@ -305,6 +348,11 @@ private fun LobbyScreen(state: AppUiState, viewModel: GameViewModel) {
                 ) {
                     Column(Modifier.weight(1f)) {
                         Text(view.statusMessage, fontWeight = FontWeight.Bold)
+                        Text(
+                            "${view.totalRounds}局 · ${if (view.doublingEnabled) "允许加倍" else "不加倍"}",
+                            color = MutedInk,
+                            fontSize = 11.sp,
+                        )
                         if (state.isHost) Text("热点地址 ${state.hostAddress}:${state.port}", color = MutedInk, fontSize = 11.sp)
                     }
                     if (state.isHost) {
@@ -387,6 +435,9 @@ private fun GameTableScreen(state: AppUiState, viewModel: GameViewModel) {
     LaunchedEffect(view.revision) {
         val available = view.ownHand.mapTo(mutableSetOf()) { it.id }
         selectedIds = selectedIds.intersect(available)
+        if (view.phase != GamePhase.PLAYING || view.currentTurnId != view.selfPlayerId) {
+            selectedIds = emptySet()
+        }
     }
 
     FreshScenicBackground(
@@ -425,6 +476,11 @@ private fun GameTableScreen(state: AppUiState, viewModel: GameViewModel) {
             }
 
             Box(modifier = Modifier.fillMaxWidth().height(140.dp)) {
+                val canAct = view.phase == GamePhase.PLAYING &&
+                    view.currentTurnId == view.selfPlayerId &&
+                    !self.isAutoPlaying
+                val showPass = canAct && view.lastPlay != null
+                val showPlay = canAct && selectedIds.isNotEmpty()
                 Row(
                     modifier = Modifier.fillMaxSize(),
                     verticalAlignment = Alignment.Bottom,
@@ -433,7 +489,7 @@ private fun GameTableScreen(state: AppUiState, viewModel: GameViewModel) {
                     CardHand(
                         cards = view.ownHand,
                         selectedIds = selectedIds,
-                        enabled = view.phase == GamePhase.PLAYING && !self.isAutoPlaying,
+                        enabled = canAct,
                         onToggle = { card ->
                             selectedIds = if (card.id in selectedIds) selectedIds - card.id else selectedIds + card.id
                         },
@@ -441,30 +497,35 @@ private fun GameTableScreen(state: AppUiState, viewModel: GameViewModel) {
                     )
                     Spacer(Modifier.width(12.dp))
                 }
-                if (view.phase == GamePhase.PLAYING) {
+                if (showPass || showPlay) {
                     Row(
                         modifier = Modifier
                             .align(Alignment.TopCenter)
-                            .offset(y = (-11).dp)
+                            .offset(y = (-24).dp)
                             .alpha(0.80f),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        FreshOutlineButton(
-                            text = "不出",
-                            onClick = viewModel::pass,
-                            enabled = view.currentTurnId == view.selfPlayerId && view.lastPlay != null && !self.isAutoPlaying,
-                            modifier = Modifier.width(84.dp).height(40.dp),
-                            containerColor = Color.White.copy(alpha = 0.58f),
-                        )
-                        FreshButton(
-                            text = "出牌",
-                            onClick = {
-                                viewModel.play(selectedIds.toList())
-                                selectedIds = emptySet()
-                            },
-                            enabled = view.currentTurnId == view.selfPlayerId && selectedIds.isNotEmpty() && !self.isAutoPlaying,
-                            modifier = Modifier.width(84.dp).height(40.dp),
-                        )
+                        if (showPass) {
+                            FreshOutlineButton(
+                                text = "不出",
+                                onClick = {
+                                    viewModel.pass()
+                                    selectedIds = emptySet()
+                                },
+                                modifier = Modifier.width(84.dp).height(38.dp),
+                                containerColor = Color.White.copy(alpha = 0.58f),
+                            )
+                        }
+                        if (showPlay) {
+                            FreshButton(
+                                text = "出牌",
+                                onClick = {
+                                    viewModel.play(selectedIds.toList())
+                                    selectedIds = emptySet()
+                                },
+                                modifier = Modifier.width(84.dp).height(38.dp),
+                            )
+                        }
                     }
                 }
             }
@@ -516,12 +577,14 @@ private fun GameTopBar(
             Spacer(Modifier.width(6.dp))
             Text("V3 · ${view.roomCode}", color = Ink, fontWeight = FontWeight.Bold)
             Spacer(Modifier.width(7.dp))
+            Text("第${view.currentRound}/${view.totalRounds}局", color = MutedInk, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.width(7.dp))
             Box(Modifier.clip(RoundedCornerShape(10.dp)).background(Sunny.copy(alpha = 0.6f)).padding(horizontal = 8.dp, vertical = 2.dp)) {
                 Text("×${view.multiplier}", color = Ink, fontWeight = FontWeight.Black)
             }
         }
         Spacer(Modifier.weight(1f))
-        if (view.phase == GamePhase.BIDDING || view.phase == GamePhase.PLAYING) {
+        if (view.phase == GamePhase.BIDDING || view.phase == GamePhase.DOUBLING || view.phase == GamePhase.PLAYING) {
             TopActionChip(
                 text = if (self.isAutoPlaying) "取消托管" else "托管",
                 onClick = { viewModel.setAutoPlay(!self.isAutoPlaying) },
@@ -566,10 +629,31 @@ private fun CenterPlayArea(
         }
         when (view.phase) {
             GamePhase.BIDDING -> BiddingControls(view, viewModel)
+            GamePhase.DOUBLING -> DoublingControls(view, viewModel)
             GamePhase.PLAYING -> Unit
             GamePhase.FINISHED -> Unit
             else -> Unit
         }
+    }
+}
+
+@Composable
+private fun DoublingControls(view: PlayerGameView, viewModel: GameViewModel) {
+    val self = view.players.firstOrNull { it.id == view.selfPlayerId }
+    val isTurn = view.currentTurnId == view.selfPlayerId && self?.isAutoPlaying != true
+    if (!isTurn) return
+    Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+        FreshOutlineButton(
+            text = "不加倍",
+            onClick = { viewModel.chooseDouble(false) },
+            modifier = Modifier.width(104.dp).height(38.dp),
+            containerColor = Color.White.copy(alpha = 0.64f),
+        )
+        FreshButton(
+            text = "加倍",
+            onClick = { viewModel.chooseDouble(true) },
+            modifier = Modifier.width(104.dp).height(38.dp),
+        )
     }
 }
 
@@ -655,16 +739,19 @@ private fun ResultPanel(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(
-                if (won) "本局胜利" else "本局结束",
+                if (view.matchComplete) "${view.totalRounds}局完成" else if (won) "本局胜利" else "本局结束",
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Black,
                 color = if (won) PeachDeep else LavenderDeep,
             )
+            Text("第 ${view.currentRound}/${view.totalRounds} 局", color = MutedInk, fontSize = 11.sp)
             Text("${if (result.spring) "春天 · " else ""}最终倍数 ×${result.multiplier}", color = MutedInk)
             Spacer(Modifier.height(6.dp))
             FreshButton(
-                text = if (self.ready) "取消下一局" else "再来一局",
-                onClick = { viewModel.setReady(!self.ready) },
+                text = if (view.matchComplete) "返回首页" else if (self.ready) "取消下一局" else "再来一局",
+                onClick = {
+                    if (view.matchComplete) viewModel.leaveRoom() else viewModel.setReady(!self.ready)
+                },
                 modifier = Modifier.width(170.dp),
             )
         }
@@ -702,6 +789,8 @@ private fun OpponentPanel(player: PlayerSummary?, currentTurnId: String?, accent
         CardBackStack(player.remainingCards)
         Text("积分 ${player.score}", color = Ink, fontSize = 10.sp)
         when {
+            player.doubleChoice == true -> StatusLabel("已加倍", PeachDeep)
+            player.doubleChoice == false -> StatusLabel("不加倍", MutedInk)
             player.isBot -> StatusLabel("机器人", MintDeep)
             player.isAutoPlaying -> StatusLabel("托管中", LavenderDeep)
             !player.connected -> StatusLabel("暂时断线", RoseRed)
@@ -725,7 +814,11 @@ private fun SelfPanel(player: PlayerSummary, modifier: Modifier = Modifier) {
             Text(player.name, fontWeight = FontWeight.Black, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text("${roleText(player.role)} · ${player.score}分", color = MutedInk, fontSize = 10.sp)
         }
-        if (player.isAutoPlaying) StatusLabel("托管中", LavenderDeep)
+        when {
+            player.doubleChoice == true -> StatusLabel("已加倍", PeachDeep)
+            player.doubleChoice == false -> StatusLabel("不加倍", MutedInk)
+            player.isAutoPlaying -> StatusLabel("托管中", LavenderDeep)
+        }
     }
 }
 

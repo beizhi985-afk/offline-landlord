@@ -33,6 +33,13 @@ class GameEngineTest {
             hostView = requireNotNull(engine.viewFor(engine.hostPlayerId))
         }
 
+        assertEquals(GamePhase.DOUBLING, hostView.phase)
+        while (hostView.phase == GamePhase.DOUBLING) {
+            val player = requireNotNull(hostView.currentTurnId)
+            assertTrue(engine.applyAction(player, PlayerAction.double(false)).success)
+            hostView = requireNotNull(engine.viewFor(engine.hostPlayerId))
+        }
+
         assertEquals(GamePhase.PLAYING, hostView.phase)
         assertNotNull(hostView.landlordId)
         assertEquals(3, hostView.bottomCards.size)
@@ -78,5 +85,60 @@ class GameEngineTest {
         assertTrue(bot.isAutoPlaying)
         assertTrue(engine.applyAction(engine.hostPlayerId, PlayerAction.removeBot(bot.id)).success)
         assertEquals(2, requireNotNull(engine.viewFor(engine.hostPlayerId)).players.size)
+    }
+
+    @Test
+    fun twentyFourRoundModeAndPlayerChoicesIncreaseMultiplier() {
+        val engine = GameEngine(
+            roomCode = "123456",
+            roomName = "二十四局测试",
+            hostName = "房主",
+            random = Random(11),
+            totalRounds = 24,
+            doublingEnabled = true,
+        )
+        val second = engine.join("玩家二").playerId!!
+        val third = engine.join("玩家三").playerId!!
+        listOf(engine.hostPlayerId, second, third).forEach { engine.applyAction(it, PlayerAction.ready(true)) }
+
+        val bidder = requireNotNull(engine.viewFor(engine.hostPlayerId)).currentTurnId!!
+        assertTrue(engine.applyAction(bidder, PlayerAction.bid(3)).success)
+        var view = requireNotNull(engine.viewFor(engine.hostPlayerId))
+        assertEquals(GamePhase.DOUBLING, view.phase)
+        assertEquals(24, view.totalRounds)
+        assertEquals(1, view.currentRound)
+
+        listOf(true, false, true).forEach { choice ->
+            val current = requireNotNull(view.currentTurnId)
+            assertTrue(engine.applyAction(current, PlayerAction.double(choice)).success)
+            view = requireNotNull(engine.viewFor(engine.hostPlayerId))
+        }
+
+        assertEquals(GamePhase.PLAYING, view.phase)
+        assertEquals(12, view.multiplier)
+        assertEquals(2, view.players.count { it.doubleChoice == true })
+    }
+
+    @Test
+    fun disabledDoublingSkipsChoiceStage() {
+        val engine = GameEngine(
+            roomCode = "123456",
+            roomName = "不加倍测试",
+            hostName = "房主",
+            random = Random(12),
+            totalRounds = 12,
+            doublingEnabled = false,
+        )
+        val second = engine.join("玩家二").playerId!!
+        val third = engine.join("玩家三").playerId!!
+        listOf(engine.hostPlayerId, second, third).forEach { engine.applyAction(it, PlayerAction.ready(true)) }
+
+        val bidder = requireNotNull(engine.viewFor(engine.hostPlayerId)).currentTurnId!!
+        assertTrue(engine.applyAction(bidder, PlayerAction.bid(3)).success)
+        val view = requireNotNull(engine.viewFor(engine.hostPlayerId))
+
+        assertEquals(GamePhase.PLAYING, view.phase)
+        assertFalse(view.doublingEnabled)
+        assertTrue(view.players.all { it.doubleChoice == null })
     }
 }

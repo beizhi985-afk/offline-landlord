@@ -49,7 +49,7 @@ $deliveryName = -join @(
     [char]0x6597,
     [char]0x5730,
     [char]0x4E3B,
-    "-v0.3.1-ui-debug.apk"
+    "-v0.3.2-ui-debug.apk"
 )
 $deliveryApk = Join-Path $PSScriptRoot $deliveryName
 Copy-Item -LiteralPath $sourceApk -Destination $deliveryApk -Force

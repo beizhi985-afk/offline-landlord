@@ -6,6 +6,7 @@ import kotlinx.serialization.Serializable
 enum class GamePhase {
     WAITING,
     BIDDING,
+    DOUBLING,
     PLAYING,
     FINISHED,
 }
@@ -21,6 +22,7 @@ enum class PlayerRole {
 enum class ActionType {
     SET_READY,
     BID,
+    DOUBLE,
     PLAY,
     PASS,
     ADD_BOT,
@@ -33,6 +35,7 @@ data class PlayerAction(
     val type: ActionType,
     val ready: Boolean? = null,
     val bid: Int? = null,
+    val doubleChoice: Boolean? = null,
     val cardIds: List<String> = emptyList(),
     val targetPlayerId: String? = null,
     val autoPlay: Boolean? = null,
@@ -40,6 +43,7 @@ data class PlayerAction(
     companion object {
         fun ready(value: Boolean) = PlayerAction(ActionType.SET_READY, ready = value)
         fun bid(value: Int) = PlayerAction(ActionType.BID, bid = value)
+        fun double(value: Boolean) = PlayerAction(ActionType.DOUBLE, doubleChoice = value)
         fun play(cardIds: List<String>) = PlayerAction(ActionType.PLAY, cardIds = cardIds)
         fun pass() = PlayerAction(ActionType.PASS)
         fun addBot() = PlayerAction(ActionType.ADD_BOT)
@@ -59,6 +63,7 @@ data class PlayerSummary(
     val remainingCards: Int,
     val score: Int,
     val bid: Int? = null,
+    val doubleChoice: Boolean? = null,
     val isBot: Boolean = false,
     val isAutoPlaying: Boolean = false,
 )
@@ -94,6 +99,11 @@ data class PlayerGameView(
     val lastPlay: PublicPlay? = null,
     val highestBid: Int = 0,
     val multiplier: Int = 1,
+    val totalRounds: Int = 12,
+    val currentRound: Int = 1,
+    val completedRounds: Int = 0,
+    val doublingEnabled: Boolean = true,
+    val matchComplete: Boolean = false,
     val result: RoundResult? = null,
     val revision: Long = 0,
     val statusMessage: String = "",

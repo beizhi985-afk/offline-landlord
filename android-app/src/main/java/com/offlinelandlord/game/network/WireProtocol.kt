@@ -36,4 +36,4 @@ internal val wireJson = Json {
     ignoreUnknownKeys = true
 }
 
-internal const val WIRE_PROTOCOL_VERSION = 2
+internal const val WIRE_PROTOCOL_VERSION = 3
