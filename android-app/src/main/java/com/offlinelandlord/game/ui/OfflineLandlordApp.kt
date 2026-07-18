@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
@@ -40,6 +41,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -395,21 +397,31 @@ private fun GameTableScreen(state: AppUiState, viewModel: GameViewModel) {
         Column(Modifier.fillMaxSize().padding(horizontal = 14.dp, vertical = 8.dp)) {
             GameTopBar(view, self, state, viewModel)
 
-            Row(
+            Box(
                 modifier = Modifier.fillMaxWidth().weight(1f),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
             ) {
-                OpponentPanel(opponents.getOrNull(0), view.currentTurnId, accent = Peach)
+                Row(
+                    modifier = Modifier.fillMaxSize(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    OpponentPanel(opponents.getOrNull(0), view.currentTurnId, accent = Peach)
 
-                CenterPlayArea(
+                    CenterPlayArea(
+                        view = view,
+                        viewModel = viewModel,
+                        modifier = Modifier.weight(1f).padding(horizontal = 12.dp),
+                    )
+
+                    OpponentPanel(opponents.getOrNull(1), view.currentTurnId, accent = Lavender)
+                }
+
+                PositionedLastPlay(
                     view = view,
-                    self = self,
-                    viewModel = viewModel,
-                    modifier = Modifier.weight(1f).padding(horizontal = 12.dp),
+                    leftPlayerId = opponents.getOrNull(0)?.id,
+                    rightPlayerId = opponents.getOrNull(1)?.id,
+                    modifier = Modifier.fillMaxSize(),
                 )
-
-                OpponentPanel(opponents.getOrNull(1), view.currentTurnId, accent = Lavender)
             }
 
             Box(modifier = Modifier.fillMaxWidth().height(140.dp)) {
@@ -431,7 +443,10 @@ private fun GameTableScreen(state: AppUiState, viewModel: GameViewModel) {
                 }
                 if (view.phase == GamePhase.PLAYING) {
                     Row(
-                        modifier = Modifier.align(Alignment.TopCenter),
+                        modifier = Modifier
+                            .align(Alignment.TopCenter)
+                            .offset(y = (-11).dp)
+                            .alpha(0.80f),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         FreshOutlineButton(
@@ -439,6 +454,7 @@ private fun GameTableScreen(state: AppUiState, viewModel: GameViewModel) {
                             onClick = viewModel::pass,
                             enabled = view.currentTurnId == view.selfPlayerId && view.lastPlay != null && !self.isAutoPlaying,
                             modifier = Modifier.width(84.dp).height(40.dp),
+                            containerColor = Color.White.copy(alpha = 0.58f),
                         )
                         FreshButton(
                             text = "出牌",
@@ -451,6 +467,15 @@ private fun GameTableScreen(state: AppUiState, viewModel: GameViewModel) {
                         )
                     }
                 }
+            }
+        }
+
+        if (view.bottomCards.isNotEmpty()) {
+            Row(
+                modifier = Modifier.align(Alignment.TopCenter).padding(top = 2.dp),
+                horizontalArrangement = Arrangement.spacedBy(3.dp),
+            ) {
+                view.bottomCards.forEach { MiniPlayingCard(it) }
             }
         }
 
@@ -512,7 +537,6 @@ private fun GameTopBar(
 @Composable
 private fun CenterPlayArea(
     view: PlayerGameView,
-    self: PlayerSummary,
     viewModel: GameViewModel,
     modifier: Modifier = Modifier,
 ) {
@@ -521,38 +545,69 @@ private fun CenterPlayArea(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        if (view.bottomCards.isNotEmpty()) {
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                view.bottomCards.forEach { MiniPlayingCard(it) }
+        val showStatus = view.phase != GamePhase.PLAYING ||
+            view.lastPlay == null ||
+            !view.statusMessage.contains("出了")
+        if (showStatus) {
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(Color(0xB8FFFFFF))
+                    .padding(horizontal = 18.dp, vertical = 8.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(view.statusMessage, fontWeight = FontWeight.ExtraBold, textAlign = TextAlign.Center, color = Ink)
             }
-            Spacer(Modifier.height(6.dp))
+            Spacer(Modifier.height(7.dp))
         }
-
-        Box(
-            modifier = Modifier
-                .clip(RoundedCornerShape(18.dp))
-                .background(Color(0xB8FFFFFF))
-                .padding(horizontal = 18.dp, vertical = 8.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(view.statusMessage, fontWeight = FontWeight.ExtraBold, textAlign = TextAlign.Center, color = Ink)
+        if (view.phase == GamePhase.PLAYING && view.lastPlay == null) {
+            Text("等待领出", color = Ink.copy(alpha = 0.72f), fontSize = 12.sp)
+            Spacer(Modifier.height(5.dp))
         }
-        Spacer(Modifier.height(7.dp))
-
-        view.lastPlay?.let { play ->
-            val playerName = view.players.firstOrNull { it.id == play.playerId }?.name.orEmpty()
-            Text("$playerName · ${play.pattern.type.displayName}", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-            Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
-                play.cards.forEach { MiniPlayingCard(it) }
-            }
-        } ?: Text("等待领出", color = Ink.copy(alpha = 0.72f), fontSize = 12.sp)
-
-        Spacer(Modifier.height(8.dp))
         when (view.phase) {
             GamePhase.BIDDING -> BiddingControls(view, viewModel)
             GamePhase.PLAYING -> Unit
             GamePhase.FINISHED -> Unit
             else -> Unit
+        }
+    }
+}
+
+@Composable
+private fun PositionedLastPlay(
+    view: PlayerGameView,
+    leftPlayerId: String?,
+    rightPlayerId: String?,
+    modifier: Modifier = Modifier,
+) {
+    val play = view.lastPlay ?: return
+    val playerName = view.players.firstOrNull { it.id == play.playerId }?.name.orEmpty()
+    Box(modifier) {
+        val position = when (play.playerId) {
+            leftPlayerId -> Modifier.align(Alignment.CenterStart).offset(x = 98.dp)
+            rightPlayerId -> Modifier.align(Alignment.CenterEnd).offset(x = (-98).dp)
+            else -> Modifier.align(Alignment.BottomCenter).offset(y = 26.dp)
+        }
+        Column(
+            modifier = position.width(150.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(Color.White.copy(alpha = 0.60f))
+                    .padding(horizontal = 7.dp, vertical = 2.dp),
+            ) {
+                Text(
+                    "$playerName · ${play.pattern.type.displayName}",
+                    color = Ink,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 10.sp,
+                    maxLines = 1,
+                )
+            }
+            Spacer(Modifier.height(2.dp))
+            PlayedCardGroup(play.cards)
         }
     }
 }

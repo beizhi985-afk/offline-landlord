@@ -114,13 +114,19 @@ fun FreshOutlineButton(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     color: Color = LavenderDeep,
+    containerColor: Color = Color.Transparent,
 ) {
     OutlinedButton(
         onClick = onClick,
         enabled = enabled,
         modifier = modifier,
         shape = RoundedCornerShape(18.dp),
-        colors = ButtonDefaults.outlinedButtonColors(contentColor = color),
+        colors = ButtonDefaults.outlinedButtonColors(
+            containerColor = containerColor,
+            contentColor = color,
+            disabledContainerColor = containerColor.copy(alpha = 0.45f),
+            disabledContentColor = color.copy(alpha = 0.42f),
+        ),
         border = BorderStroke(1.5.dp, color.copy(alpha = if (enabled) 0.65f else 0.25f)),
     ) {
         Text(text, fontWeight = FontWeight.Bold)

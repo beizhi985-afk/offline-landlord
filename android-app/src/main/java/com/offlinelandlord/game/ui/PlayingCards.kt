@@ -160,15 +160,54 @@ fun MiniPlayingCard(card: Card, modifier: Modifier = Modifier) {
             .border(1.dp, Color(0xFFE8E3EA), RoundedCornerShape(6.dp))
             .padding(3.dp),
     ) {
-        Text(
-            text = if (card.suit == Suit.JOKER) if (card.rank == Rank.BIG_JOKER) "大" else "小" else card.rank.label,
-            color = ink,
-            fontSize = 11.sp,
-            fontWeight = FontWeight.Black,
-            fontFamily = FontFamily.Serif,
-        )
-        if (card.suit != Suit.JOKER) {
+        if (card.suit == Suit.JOKER) {
+            Text(
+                text = "J\nO\nK\nE\nR",
+                color = ink,
+                fontSize = 6.5.sp,
+                lineHeight = 6.7.sp,
+                fontWeight = FontWeight.Black,
+                fontFamily = FontFamily.Serif,
+                modifier = Modifier.align(Alignment.TopStart),
+            )
+        } else {
+            Text(
+                text = card.rank.label,
+                color = ink,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Black,
+                fontFamily = FontFamily.Serif,
+            )
             Text(card.suit.symbol, color = ink, fontSize = 17.sp, modifier = Modifier.align(Alignment.BottomEnd))
+        }
+    }
+}
+
+@Composable
+fun PlayedCardGroup(
+    cards: List<Card>,
+    modifier: Modifier = Modifier,
+    maxWidth: Dp = 142.dp,
+) {
+    BoxWithConstraints(
+        modifier = modifier.width(maxWidth).height(48.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        val cardWidth = 34.dp
+        val spacing = when {
+            cards.size <= 1 -> 0.dp
+            else -> minOf(27.dp, (this.maxWidth - cardWidth) / (cards.size - 1)).coerceAtLeast(5.dp)
+        }
+        val groupWidth = if (cards.isEmpty()) 0.dp else cardWidth + spacing * (cards.size - 1)
+        Box(Modifier.width(groupWidth).height(48.dp)) {
+            cards.forEachIndexed { index, card ->
+                MiniPlayingCard(
+                    card = card,
+                    modifier = Modifier
+                        .offset(x = spacing * index)
+                        .zIndex(index.toFloat()),
+                )
+            }
         }
     }
 }
