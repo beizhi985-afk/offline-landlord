@@ -43,13 +43,15 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 $sourceApk = Join-Path $repoRoot "android-app\build\outputs\apk\debug\android-app-debug.apk"
-$existingDeliveryApk = Get-ChildItem -LiteralPath $PSScriptRoot -Filter "*-v0.2.0-bot-debug.apk" |
-    Select-Object -First 1
-if ($null -ne $existingDeliveryApk) {
-    $deliveryApk = $existingDeliveryApk.FullName
-} else {
-    $deliveryApk = Join-Path $PSScriptRoot "offline-landlord-v0.2.0-bot-debug.apk"
-}
+$deliveryName = -join @(
+    [char]0x79BB,
+    [char]0x7EBF,
+    [char]0x6597,
+    [char]0x5730,
+    [char]0x4E3B,
+    "-v0.3.0-ui-debug.apk"
+)
+$deliveryApk = Join-Path $PSScriptRoot $deliveryName
 Copy-Item -LiteralPath $sourceApk -Destination $deliveryApk -Force
 
 Write-Host "Tests and APK build completed successfully."

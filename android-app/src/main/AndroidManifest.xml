@@ -9,7 +9,7 @@
 
     <application
         android:allowBackup="true"
-        android:label="离线斗地主"
+        android:label="离线斗地主 V3"
         android:supportsRtl="true"
         android:theme="@style/Theme.OfflineLandlord"
         android:usesCleartextTraffic="true">
@@ -26,4 +26,3 @@
     </application>
 
 </manifest>
-
