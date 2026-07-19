@@ -1,8 +1,11 @@
 package com.offlinelandlord.game.ui
 
+import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -50,7 +53,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.offlinelandlord.game.BuildConfig
 import com.offlinelandlord.game.core.GamePhase
 import com.offlinelandlord.game.core.PlayerGameView
 import com.offlinelandlord.game.core.PlayerRole
@@ -73,10 +78,21 @@ import com.offlinelandlord.game.ui.theme.Sunny
 @Composable
 fun OfflineLandlordApp(viewModel: GameViewModel) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    val updatePreferences = remember {
+        context.getSharedPreferences("offline_landlord_updates", Context.MODE_PRIVATE)
+    }
+    var showUpdateDialog by rememberSaveable {
+        mutableStateOf(updatePreferences.getInt("seen_version_code", 0) < BuildConfig.VERSION_CODE)
+    }
+    val dismissUpdateDialog = {
+        updatePreferences.edit().putInt("seen_version_code", BuildConfig.VERSION_CODE).apply()
+        showUpdateDialog = false
+    }
 
     Surface(modifier = Modifier.fillMaxSize(), color = Cream) {
         when (state.gameView?.phase) {
-            null -> HomeScreen(state, viewModel)
+            null -> HomeScreen(state, viewModel, onShowUpdate = { showUpdateDialog = true })
             GamePhase.WAITING -> LobbyScreen(state, viewModel)
             GamePhase.BIDDING,
             GamePhase.DOUBLING,
@@ -98,11 +114,15 @@ fun OfflineLandlordApp(viewModel: GameViewModel) {
                 containerColor = Color(0xFFFFFBF8),
             )
         }
+
+        if (showUpdateDialog) {
+            UpdateNoticeDialog(onDismiss = dismissUpdateDialog)
+        }
     }
 }
 
 @Composable
-private fun HomeScreen(state: AppUiState, viewModel: GameViewModel) {
+private fun HomeScreen(state: AppUiState, viewModel: GameViewModel, onShowUpdate: () -> Unit) {
     var playerName by rememberSaveable { mutableStateOf("玩家${(10..99).random()}") }
     var hostIp by rememberSaveable { mutableStateOf("192.168.43.1") }
     var roomCode by rememberSaveable { mutableStateOf("") }
@@ -134,9 +154,24 @@ private fun HomeScreen(state: AppUiState, viewModel: GameViewModel) {
                         Text("♠", color = Color.White, fontSize = 25.sp, fontWeight = FontWeight.Black)
                     }
                     Spacer(Modifier.width(12.dp))
-                    Column {
+                    Column(Modifier.weight(1f)) {
                         Text("离线斗地主", fontSize = 28.sp, fontWeight = FontWeight.Black, color = Ink, maxLines = 1)
-                        Text("V3 · 清风牌局", color = PeachDeep, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("V3.3 · 清风牌局", color = PeachDeep, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                            Spacer(Modifier.width(8.dp))
+                            Box(
+                                modifier = Modifier
+                                    .width(64.dp)
+                                    .height(23.dp)
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(Color.White.copy(alpha = 0.72f))
+                                    .border(1.dp, MintDeep.copy(alpha = 0.62f), RoundedCornerShape(10.dp))
+                                    .clickable(onClick = onShowUpdate),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Text("更新内容", color = MintDeep, fontSize = 10.sp, fontWeight = FontWeight.Black)
+                            }
+                        }
                     }
                 }
 
@@ -250,6 +285,46 @@ private fun HomeScreen(state: AppUiState, viewModel: GameViewModel) {
                         )
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun UpdateNoticeDialog(onDismiss: () -> Unit) {
+    Box(
+        modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.28f)),
+        contentAlignment = Alignment.Center,
+    ) {
+        Card(
+            modifier = Modifier.width(560.dp).height(350.dp),
+            shape = RoundedCornerShape(26.dp),
+            colors = CardDefaults.cardColors(containerColor = Color(0xFFFFFBF8)),
+        ) {
+            Column(
+                modifier = Modifier.fillMaxSize().padding(horizontal = 28.dp, vertical = 18.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("♠", color = PeachDeep, fontSize = 28.sp, fontWeight = FontWeight.Black)
+                    Spacer(Modifier.width(10.dp))
+                    Text("V3.3 更新完成", fontSize = 22.sp, fontWeight = FontWeight.Black, color = Ink)
+                }
+                Spacer(Modifier.height(14.dp))
+                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                    Text("• 安装新版本后首次打开显示更新内容", color = Ink, fontSize = 13.sp)
+                    Text("• 每局随机决定第一位叫地主的玩家", color = Ink, fontSize = 13.sp)
+                    Text("• 12/24 局结束后生成整场排行榜", color = Ink, fontSize = 13.sp)
+                    Text("• 可查看每一局的输赢、分数变化与累计分", color = Ink, fontSize = 13.sp)
+                }
+                Spacer(Modifier.height(10.dp))
+                Text("提示内容保存在本机，不需要联网。", color = MutedInk, fontSize = 11.sp)
+                Spacer(Modifier.weight(1f))
+                FreshButton(
+                    text = "开始玩",
+                    onClick = onDismiss,
+                    modifier = Modifier.width(126.dp).height(40.dp),
+                )
             }
         }
     }
@@ -547,12 +622,20 @@ private fun GameTableScreen(state: AppUiState, viewModel: GameViewModel) {
                     .background(Color.Black.copy(alpha = 0.16f)),
                 contentAlignment = Alignment.Center,
             ) {
-                ResultPanel(
-                    view = view,
-                    self = self,
-                    viewModel = viewModel,
-                    modifier = Modifier.width(300.dp),
-                )
+                if (view.matchComplete) {
+                    MatchSummaryPanel(
+                        view = view,
+                        viewModel = viewModel,
+                        modifier = Modifier.width(740.dp).height(410.dp),
+                    )
+                } else {
+                    ResultPanel(
+                        view = view,
+                        self = self,
+                        viewModel = viewModel,
+                        modifier = Modifier.width(300.dp),
+                    )
+                }
             }
         }
     }
@@ -757,6 +840,125 @@ private fun ResultPanel(
         }
     }
 }
+
+@Composable
+private fun MatchSummaryPanel(
+    view: PlayerGameView,
+    viewModel: GameViewModel,
+    modifier: Modifier = Modifier,
+) {
+    val history = view.roundHistory
+    val rankedPlayers = view.players.sortedWith(
+        compareByDescending<PlayerSummary> { it.score }
+            .thenByDescending { player -> history.count { record -> playerWonRound(player.id, record.landlordId, record.winnerRole) } }
+            .thenBy { it.seat },
+    )
+    Card(
+        modifier = modifier,
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFFDFBFA)),
+    ) {
+        Column(Modifier.fillMaxSize().padding(horizontal = 18.dp, vertical = 12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("本场排行榜", fontSize = 22.sp, fontWeight = FontWeight.Black, color = Ink)
+                    Text("${view.totalRounds} 局全部完成 · 每局战绩已汇总", color = MutedInk, fontSize = 11.sp)
+                }
+                FreshButton(
+                    text = "返回首页",
+                    onClick = viewModel::leaveRoom,
+                    modifier = Modifier.width(108.dp).height(38.dp),
+                )
+            }
+            Spacer(Modifier.height(8.dp))
+            Row(Modifier.fillMaxWidth().weight(1f), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                Column(Modifier.width(236.dp).fillMaxHeight()) {
+                    Text("最终排名", color = LavenderDeep, fontWeight = FontWeight.Black, fontSize = 12.sp)
+                    Spacer(Modifier.height(5.dp))
+                    rankedPlayers.forEachIndexed { index, player ->
+                        val wins = history.count { playerWonRound(player.id, it.landlordId, it.winnerRole) }
+                        val losses = history.size - wins
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(64.dp)
+                                .padding(bottom = 5.dp)
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(
+                                    when (index) {
+                                        0 -> Sunny.copy(alpha = 0.34f)
+                                        1 -> Lavender.copy(alpha = 0.30f)
+                                        else -> Mint.copy(alpha = 0.28f)
+                                    },
+                                )
+                                .padding(horizontal = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text("${index + 1}", fontSize = 22.sp, fontWeight = FontWeight.Black, color = if (index == 0) PeachDeep else LavenderDeep)
+                            Spacer(Modifier.width(9.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(player.name, fontWeight = FontWeight.Black, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                Text("${wins}胜 ${losses}负", color = MutedInk, fontSize = 10.sp)
+                            }
+                            Text("${player.score}分", color = if (player.score >= 0) MintDeep else RoseRed, fontWeight = FontWeight.Black)
+                        }
+                    }
+                }
+
+                Column(Modifier.weight(1f).fillMaxHeight()) {
+                    Text("每局输赢与分数", color = LavenderDeep, fontWeight = FontWeight.Black, fontSize = 12.sp)
+                    Spacer(Modifier.height(5.dp))
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f)
+                            .verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(5.dp),
+                    ) {
+                        history.asReversed().forEach { record ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(54.dp)
+                                    .clip(RoundedCornerShape(14.dp))
+                                    .background(Color.White.copy(alpha = 0.82f))
+                                    .border(1.dp, Lavender.copy(alpha = 0.42f), RoundedCornerShape(14.dp))
+                                    .padding(horizontal = 8.dp, vertical = 5.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Column(Modifier.width(84.dp)) {
+                                    Text("第${record.roundNumber}局", fontWeight = FontWeight.Black, color = Ink, fontSize = 11.sp)
+                                    Text(
+                                        "${if (record.winnerRole == PlayerRole.LANDLORD) "地主" else "农民"}胜 · ×${record.multiplier}",
+                                        color = PeachDeep,
+                                        fontSize = 9.sp,
+                                        maxLines = 1,
+                                    )
+                                }
+                                view.players.sortedBy { it.seat }.forEach { player ->
+                                    val change = record.scoreChanges[player.id] ?: 0
+                                    val total = record.totalScores[player.id] ?: 0
+                                    Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Text(player.name, maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                                        Text(
+                                            "${if (change >= 0) "+" else ""}$change / $total",
+                                            color = if (change >= 0) MintDeep else RoseRed,
+                                            fontSize = 9.sp,
+                                            fontWeight = FontWeight.Black,
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun playerWonRound(playerId: String, landlordId: String, winnerRole: PlayerRole): Boolean =
+    if (playerId == landlordId) winnerRole == PlayerRole.LANDLORD else winnerRole == PlayerRole.FARMER
 
 @Composable
 private fun OpponentPanel(player: PlayerSummary?, currentTurnId: String?, accent: Color) {

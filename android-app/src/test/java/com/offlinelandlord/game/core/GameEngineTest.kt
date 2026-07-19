@@ -141,4 +141,26 @@ class GameEngineTest {
         assertFalse(view.doublingEnabled)
         assertTrue(view.players.all { it.doubleChoice == null })
     }
+
+    @Test
+    fun everyRedealRandomlyChoosesFirstBidder() {
+        val engine = GameEngine("123456", "随机首叫测试", "房主", Random(41))
+        val second = engine.join("玩家二").playerId!!
+        val third = engine.join("玩家三").playerId!!
+        listOf(engine.hostPlayerId, second, third).forEach { engine.applyAction(it, PlayerAction.ready(true)) }
+
+        val starters = mutableSetOf<String>()
+        repeat(10) {
+            var view = requireNotNull(engine.viewFor(engine.hostPlayerId))
+            assertEquals(GamePhase.BIDDING, view.phase)
+            starters += requireNotNull(view.currentTurnId)
+            repeat(3) {
+                val bidder = requireNotNull(view.currentTurnId)
+                assertTrue(engine.applyAction(bidder, PlayerAction.bid(0)).success)
+                view = requireNotNull(engine.viewFor(engine.hostPlayerId))
+            }
+        }
+
+        assertTrue("十次重新发牌应出现不同的首叫玩家", starters.size >= 2)
+    }
 }

@@ -40,9 +40,11 @@ class GameEngine(
     private var highestBid = 0
     private var highestBidderId: String? = null
     private var startingBidderSeat = 0
+    private var firstBidderId = ""
     private var multiplier = 1
     private var completedRounds = 0
     private var result: RoundResult? = null
+    private val roundHistory = mutableListOf<RoundRecord>()
     private var revision = 0L
     private var statusMessage = "等待三名玩家加入"
 
@@ -157,6 +159,7 @@ class GameEngine(
             doublingEnabled = doublingEnabled,
             matchComplete = completedRounds >= totalRounds,
             result = result,
+            roundHistory = roundHistory.toList(),
             revision = revision,
             statusMessage = statusMessage,
         )
@@ -263,6 +266,8 @@ class GameEngine(
             it.successfulPlayCount = 0
         }
 
+        startingBidderSeat = random.nextInt(3)
+        firstBidderId = playerAtSeat(startingBidderSeat).id
         val deck = DeckFactory.shuffledDeck(random)
         players.sortedBy { it.seat }.forEachIndexed { index, player ->
             player.hand += deck.subList(index * 17, (index + 1) * 17)
@@ -278,8 +283,8 @@ class GameEngine(
         multiplier = 1
         result = null
         phase = GamePhase.BIDDING
-        currentTurnId = playerAtSeat(startingBidderSeat).id
-        statusMessage = "开始叫分"
+        currentTurnId = firstBidderId
+        statusMessage = "${playerAtSeat(startingBidderSeat).name} 随机先叫"
         revision++
     }
 
@@ -300,7 +305,6 @@ class GameEngine(
 
         if (value == 3 || bidCount == 3) {
             if (highestBidderId == null) {
-                startingBidderSeat = (startingBidderSeat + 1) % 3
                 statusMessage = "三人都不叫，重新发牌"
                 startRound()
             } else {
@@ -423,11 +427,21 @@ class GameEngine(
 
         result = RoundResult(winnerRole, winner.id, multiplier, spring, changes)
         completedRounds++
+        roundHistory += RoundRecord(
+            roundNumber = completedRounds,
+            firstBidderId = firstBidderId,
+            landlordId = landlord.id,
+            winnerRole = winnerRole,
+            winnerPlayerId = winner.id,
+            multiplier = multiplier,
+            spring = spring,
+            scoreChanges = changes,
+            totalScores = players.associate { it.id to it.score },
+        )
         phase = GamePhase.FINISHED
         currentTurnId = null
         val matchComplete = completedRounds >= totalRounds
         players.forEach { it.ready = !matchComplete && (it.isBot || it.autoPlaying) }
-        startingBidderSeat = (startingBidderSeat + 1) % 3
         statusMessage = if (matchComplete) {
             "$totalRounds 局已完成"
         } else if (winnerRole == PlayerRole.LANDLORD) {

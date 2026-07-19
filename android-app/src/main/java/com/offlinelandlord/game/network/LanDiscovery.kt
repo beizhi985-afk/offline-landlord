@@ -144,5 +144,5 @@ object LocalAddressFinder {
 }
 
 private const val DISCOVERY_PORT = 39172
-private const val DISCOVERY_REQUEST = "DDZ_DISCOVER_V3"
-private const val DISCOVERY_RESPONSE = "DDZ_HOST_V3"
+private const val DISCOVERY_REQUEST = "DDZ_DISCOVER_V4"
+private const val DISCOVERY_RESPONSE = "DDZ_HOST_V4"

@@ -85,6 +85,19 @@ data class RoundResult(
 )
 
 @Serializable
+data class RoundRecord(
+    val roundNumber: Int,
+    val firstBidderId: String,
+    val landlordId: String,
+    val winnerRole: PlayerRole,
+    val winnerPlayerId: String,
+    val multiplier: Int,
+    val spring: Boolean,
+    val scoreChanges: Map<String, Int>,
+    val totalScores: Map<String, Int>,
+)
+
+@Serializable
 data class PlayerGameView(
     val roomCode: String,
     val roomName: String,
@@ -105,6 +118,7 @@ data class PlayerGameView(
     val doublingEnabled: Boolean = true,
     val matchComplete: Boolean = false,
     val result: RoundResult? = null,
+    val roundHistory: List<RoundRecord> = emptyList(),
     val revision: Long = 0,
     val statusMessage: String = "",
 )

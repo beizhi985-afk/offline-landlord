@@ -34,7 +34,7 @@ class WireProtocolTest {
             wireJson.encodeToString(WireEnvelope.serializer(), original),
         )
 
-        assertEquals(3, decoded.protocolVersion)
+        assertEquals(4, decoded.protocolVersion)
         assertEquals(true, decoded.action?.doubleChoice)
     }
 }

@@ -86,6 +86,53 @@ class BotSimulationTest {
         assertEquals(12, completed.completedRounds)
         assertEquals(12, completed.currentRound)
         assertTrue(completed.matchComplete)
+        assertEquals(12, completed.roundHistory.size)
+        assertEquals((1..12).toList(), completed.roundHistory.map { it.roundNumber })
+        assertTrue(completed.roundHistory.all { record -> record.scoreChanges.values.sum() == 0 })
+        assertEquals(
+            completed.players.associate { it.id to it.score },
+            completed.roundHistory.last().totalScores,
+        )
         assertFalse(engine.applyAction(engine.hostPlayerId, PlayerAction.ready(true)).success)
+    }
+
+    @Test
+    fun twentyFourRoundMatchProducesCompleteScoreHistory() {
+        val engine = GameEngine(
+            roomCode = "123456",
+            roomName = "二十四局完整测试",
+            hostName = "房主",
+            random = Random(33),
+            totalRounds = 24,
+            doublingEnabled = true,
+        )
+        assertTrue(engine.applyAction(engine.hostPlayerId, PlayerAction.addBot()).success)
+        assertTrue(engine.applyAction(engine.hostPlayerId, PlayerAction.addBot()).success)
+        assertTrue(engine.applyAction(engine.hostPlayerId, PlayerAction.autoPlay(true)).success)
+        assertTrue(engine.applyAction(engine.hostPlayerId, PlayerAction.ready(true)).success)
+
+        var actionCount = 0
+        while (true) {
+            val hostView = requireNotNull(engine.viewFor(engine.hostPlayerId))
+            if (hostView.matchComplete) break
+            if (hostView.phase == GamePhase.FINISHED) {
+                assertTrue(engine.applyAction(engine.hostPlayerId, PlayerAction.ready(true)).success)
+                continue
+            }
+            val automatedId = requireNotNull(engine.automatedPlayerId())
+            val playerView = requireNotNull(engine.viewFor(automatedId))
+            assertTrue(engine.applyAction(automatedId, requireNotNull(BotBrain.chooseAction(playerView))).success)
+            assertTrue("二十四局对战操作次数异常", ++actionCount < 14_400)
+        }
+
+        val completed = requireNotNull(engine.viewFor(engine.hostPlayerId))
+        assertEquals(24, completed.completedRounds)
+        assertEquals(24, completed.roundHistory.size)
+        assertEquals((1..24).toList(), completed.roundHistory.map { it.roundNumber })
+        assertEquals(
+            completed.players.associate { it.id to it.score },
+            completed.roundHistory.last().totalScores,
+        )
+        assertTrue(completed.roundHistory.all { record -> record.scoreChanges.values.sum() == 0 })
     }
 }
