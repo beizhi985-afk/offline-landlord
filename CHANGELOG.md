@@ -1,5 +1,25 @@
 # 更新日志
 
+## 阶段4 - UNO 纯 Kotlin 核心引擎
+
+### 新增
+
+- 新增独立 com.offlinelandlord.game.uno.core，包含经典108张牌模型、唯一 cardId、牌堆、2～4人发牌与可注入随机数。
+- 新增 TURN、AFTER_DRAW、CHOOSE_COLOR、ROUND_FINISHED、MATCH_FINISHED 状态机，以及统一 applyAction 入口和明确错误结果。
+- 实现同色/同数字/同符号匹配、Skip、Reverse、Draw Two、Wild、Wild Draw Four、首张功能牌和摸牌堆重洗。
+- Wild Draw Four 仅在手中没有当前活动颜色时合法；不支持 +2/+4 叠加、Jump-In、多牌齐出、7-0或其他民间规则。
+- 实现显式 UNO 宣告、无倒计时的抓 UNO 窗口、抓牌罚2张及下一玩家首个有效动作关闭窗口。
+- 实现 Quick 一局模式、默认500分积分赛、单局计分、累计分、下一局完整重发和起始座位轮换。
+- 新增 legalPlayableCards、canPlayCard 与 availableActions，供后续UI、网络验证和机器人复用。
+
+### 测试与边界
+
+- 新增92项纯JVM UNO测试；原93项回归测试全部保留，完整测试185/185通过，0失败、0错误、0跳过。
+- UNO随机合法动作驱动完成2000/2000局，覆盖2～4人，并在每步检查108张牌守恒、唯一ID和最终胜者。
+- 斗地主机器人压力测试以2000局强制执行并全部通过；Android Debug完整构建成功。
+- UNO核心没有Android、Compose、斗地主核心或网络依赖；没有创建UnoBot、UNO UI、UNO房间或UNO V5 adapter。
+- 应用内UNO仍显示“开发中”，用户可见行为与阶段3一致。阶段5机器人尚未开始。
+
 ## 阶段3 - V5 多游戏网络协议
 
 ### 新增
