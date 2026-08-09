@@ -1,5 +1,31 @@
 # 更新日志
 
+## 阶段3 - V5 多游戏网络协议
+
+### 新增
+
+- 新增中立可序列化的 `shared/GameType`，仅包含 `LANDLORD` 与 `UNO`，供应用壳和协议共同使用。
+- 新增独立 V5 通用 JSON 信封：`protocolVersion = 5`、`gameType`、通用消息类型、身份/房间/revision 字段与 `JsonElement payload`；通用层不依赖斗地主 core。
+- 新增斗地主 V5 payload adapter，将 JOIN、`PlayerAction`、`PlayerGameView` 和斗地主 discovery 配置限制在斗地主层。
+- 新版斗地主客户端默认以 V5 加入、行动、接收状态、PING/PONG 与重连；手工 IP 加入默认 V5。
+- 新斗地主房主同时接受 V4 / V5，并按连接记录的协议版本回发 JOIN、STATE、ERROR、PONG；两种协议共用同一套斗地主业务回调。
+- 新增 V5 JSON 房间发现：`OFFLINE_GAMES_DISCOVER_V5` / `OFFLINE_GAMES_HOST_V5`，包含 `gameType`、人数和 `gameConfig`。
+- 新发现客户端同时询问 V4/V5，按 `host + port + roomCode` 去重并优先 V5；V4-only 斗地主房间继续使用兼容客户端。
+
+### 兼容与安全
+
+- V4 `WireEnvelope`、`WireType`、`DDZ_DISCOVER_V4` 和 `DDZ_HOST_V4` 原样保留，历史 fixture 继续通过。
+- 服务端将 V4 的首个 JOIN 与后续历史 `protocolVersion = 0` 消息区分处理，避免以版本字段误判旧客户端。
+- V5 对错误 JSON、错误版本、未知 gameType/type 和错误 payload 安全拒绝；UNO V5 JOIN 返回不支持错误，不创建 UNO 房间。
+- 未修改公共 TCP/UDP transport、斗地主规则、机器人、计分、房间码、断线接管、targetSdk、applicationId 或依赖版本；没有新增第三方网络库。
+
+### 测试
+
+- 新增 28 项 V5 fixture、discovery、协议选择与真实 TCP 回环测试，含 V5 JOIN/ACTION/STATE、V5 resumeToken 重连、V4 加入新服务端及混合 V4/V5 状态编码。
+- 原65项继续通过，当前自动测试共93/93通过，0失败、0错误。
+- 机器人压力测试完成2000/2000局；Android Debug 完整构建成功。
+- 三台 Android 热点真机验收尚未在本阶段重新执行；该风险保留给后续验收。
+
 ## 阶段2 - 公共房间与 LAN 网络基础设施边界
 
 ### 架构

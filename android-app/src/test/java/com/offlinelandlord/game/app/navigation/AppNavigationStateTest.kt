@@ -1,5 +1,6 @@
 package com.offlinelandlord.game.app.navigation
 
+import com.offlinelandlord.game.shared.GameType
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Test

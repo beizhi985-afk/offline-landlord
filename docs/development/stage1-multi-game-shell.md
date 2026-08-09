@@ -16,7 +16,7 @@
 
 ## 新增边界
 
-- `app/navigation`：只保存 `GameType`、应用路由和轻量导航状态。
+- `shared/GameType.kt`：保存可被应用壳和协议共同依赖的 `GameType`；`app/navigation` 保存应用路由和轻量导航状态。
 - `app/gameselection`：游戏选择界面和UNO占位界面。
 - `OfflineGamesApp`：应用壳，根据当前路由组合选择页或原斗地主入口。
 
