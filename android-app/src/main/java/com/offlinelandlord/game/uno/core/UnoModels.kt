@@ -13,6 +13,35 @@ data class UnoPlayerState(
     val score: Int,
 )
 
+data class UnoPublicPlayerState(
+    val playerId: String,
+    val playerName: String,
+    val seat: Int,
+    val remainingCardCount: Int,
+    val score: Int,
+)
+
+data class UnoGameView(
+    val selfPlayerId: String,
+    val ownHand: List<UnoCard>,
+    val players: List<UnoPublicPlayerState>,
+    val currentPlayerId: String?,
+    val direction: UnoDirection,
+    val topDiscardCard: UnoCard,
+    val activeColor: UnoColor?,
+    val phase: UnoPhase,
+    val roundNumber: Int,
+    val scores: Map<String, Int>,
+    val unoDeclaredPlayerId: String?,
+    val catchTargetPlayerId: String?,
+    val drawnCardId: String?,
+    val colorChooserPlayerId: String?,
+    val roundWinnerId: String?,
+    val matchWinnerId: String?,
+    val matchMode: UnoMatchMode,
+    val targetScore: Int,
+)
+
 enum class UnoDirection {
     CLOCKWISE,
     COUNTER_CLOCKWISE,

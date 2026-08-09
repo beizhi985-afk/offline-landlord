@@ -1,5 +1,25 @@
 # 更新日志
 
+## 阶段5 - UNO NORMAL 机器人
+
+### 新增
+
+- 新增 `com.offlinelandlord.game.uno.bot`，包含 `UnoBot`、公平信息 `UnoBotObservation`、可扩展 `UnoBotStrategy`、`NormalUnoBotStrategy` 和 `UnoBotGameRunner`。
+- UNO核心新增通用只读 `viewFor(playerId)` 视图：仅向本人公开完整手牌，其他玩家只公开座位、分数和剩余牌数；摸到的牌ID也只向当前本人公开。
+- NORMAL机器人只在Engine给出的 `availableActions` 与 `legalPlayableCards` 中选择动作，不复制出牌规则、回合推进或Wild Draw Four合法性判断。
+- 实现宣告UNO后连续出牌、抓UNO、Wild选色、AFTER_DRAW强牌保留、危险对手阻断、高分牌处置和优势颜色保留。
+- Random由构造参数注入；固定状态与固定seed产生可重复决策，正式策略保持轻量启发式，不引入搜索树或概率记牌模型。
+- 新增纯Kotlin自动牌局执行器，支持2～4名Bot、Quick、500分Points、跨局 `StartNextRound`、动作上限保护及真人/机器人混合座位等待。
+
+### 测试与边界
+
+- 阶段5新增41项自动测试，原185项全部保留，总计226/226通过，0失败、0错误、0跳过。
+- UNO Bot Quick完成5000/5000局，2～4人轮换覆盖；UNO Bot Points完成500/500场500分比赛，均自然结束并产生胜者。
+- 压力测试在每个动作后检查108张牌守恒与唯一 `cardId`，并通过动作上限捕获潜在死循环。
+- 阶段4随机合法动作压力测试继续完成2000/2000局；斗地主机器人压力测试继续完成2000/2000局；Android Debug完整构建成功。
+- 生产Bot不依赖Android、Compose、LAN或V5，也不读取其他玩家完整手牌、不直接修改 `UnoGameState`。
+- 应用内UNO仍显示“开发中”，没有新增UNO UI、房间、LAN、V5 adapter或单机开始入口。阶段6计划开发UNO单机Compose UI，暂不接LAN。
+
 ## 阶段4 - UNO 纯 Kotlin 核心引擎
 
 ### 新增

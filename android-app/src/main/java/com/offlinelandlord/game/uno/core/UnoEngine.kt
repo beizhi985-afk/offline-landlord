@@ -55,6 +55,39 @@ class UnoEngine private constructor(
         @Synchronized get() = snapshot()
 
     @Synchronized
+    fun viewFor(playerId: String): UnoGameView? {
+        val self = players.firstOrNull { it.playerId == playerId } ?: return null
+        return UnoGameView(
+            selfPlayerId = self.playerId,
+            ownHand = self.hand.toList(),
+            players = players.map {
+                UnoPublicPlayerState(
+                    playerId = it.playerId,
+                    playerName = it.playerName,
+                    seat = it.seat,
+                    remainingCardCount = it.hand.size,
+                    score = it.score,
+                )
+            },
+            currentPlayerId = currentSeat?.let { players[it].playerId },
+            direction = direction,
+            topDiscardCard = discardPile.last(),
+            activeColor = activeColor,
+            phase = phase,
+            roundNumber = roundNumber,
+            scores = scores.toMap(),
+            unoDeclaredPlayerId = unoDeclaredPlayerId,
+            catchTargetPlayerId = catchWindow?.targetPlayerId,
+            drawnCardId = drawnCardId.takeIf { currentSeat == self.seat },
+            colorChooserPlayerId = colorChooserPlayerId,
+            roundWinnerId = roundWinnerId,
+            matchWinnerId = matchWinnerId,
+            matchMode = matchMode,
+            targetScore = targetScore,
+        )
+    }
+
+    @Synchronized
     fun applyAction(playerId: String, action: UnoAction): UnoActionResult {
         val seat = players.indexOfFirst { it.playerId == playerId }
         if (seat < 0) return failure(UnoErrorCode.INVALID_PLAYER, "Player does not exist")
