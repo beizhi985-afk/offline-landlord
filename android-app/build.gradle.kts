@@ -12,8 +12,8 @@ android {
         applicationId = "com.offlinelandlord.game.v2"
         minSdk = 26
         targetSdk = 36
-        versionCode = 6
-        versionName = "0.3.3"
+        versionCode = 10
+        versionName = "0.3.7"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

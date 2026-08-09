@@ -143,6 +143,61 @@ class GameEngineTest {
     }
 
     @Test
+    fun activeGameStatusAlwaysShowsCurrentPlayerInsteadOfConnectionEvents() {
+        val engine = GameEngine("123456", "回合提示测试", "房主", Random(31))
+        val second = engine.join("玩家二")
+        val third = engine.join("玩家三")
+        val ids = listOf(engine.hostPlayerId, second.playerId!!, third.playerId!!)
+        ids.forEach { engine.applyAction(it, PlayerAction.ready(true)) }
+
+        var view = requireNotNull(engine.viewFor(engine.hostPlayerId))
+        val bidder = requireNotNull(view.currentTurnId)
+        val bidderName = view.players.single { it.id == bidder }.name
+        assertEquals("轮到 $bidderName 叫地主", view.statusMessage)
+
+        engine.disconnect(second.playerId)
+        view = requireNotNull(engine.viewFor(engine.hostPlayerId))
+        assertEquals("轮到 $bidderName 叫地主", view.statusMessage)
+        assertFalse(view.statusMessage.contains("断线"))
+        assertFalse(view.statusMessage.contains("连接"))
+
+        assertTrue(engine.join("玩家二", second.resumeToken).success)
+        view = requireNotNull(engine.viewFor(engine.hostPlayerId))
+        assertEquals("轮到 $bidderName 叫地主", view.statusMessage)
+        assertFalse(view.statusMessage.contains("重新连接"))
+    }
+
+    @Test
+    fun playingStatusShowsCurrentPlayersLandlordOrFarmerSide() {
+        val engine = GameEngine(
+            roomCode = "123456",
+            roomName = "出牌方提示测试",
+            hostName = "房主",
+            random = Random(32),
+            doublingEnabled = false,
+        )
+        val second = engine.join("玩家二").playerId!!
+        val third = engine.join("玩家三").playerId!!
+        listOf(engine.hostPlayerId, second, third).forEach { engine.applyAction(it, PlayerAction.ready(true)) }
+
+        var view = requireNotNull(engine.viewFor(engine.hostPlayerId))
+        val landlordId = requireNotNull(view.currentTurnId)
+        assertTrue(engine.applyAction(landlordId, PlayerAction.bid(3)).success)
+
+        view = requireNotNull(engine.viewFor(engine.hostPlayerId))
+        val landlordName = view.players.single { it.id == landlordId }.name
+        assertEquals(GamePhase.PLAYING, view.phase)
+        assertEquals("轮到 $landlordName（地主）出牌", view.statusMessage)
+
+        val landlordView = requireNotNull(engine.viewFor(landlordId))
+        assertTrue(engine.applyAction(landlordId, PlayerAction.play(listOf(landlordView.ownHand.first().id))).success)
+        view = requireNotNull(engine.viewFor(engine.hostPlayerId))
+        val farmerId = requireNotNull(view.currentTurnId)
+        val farmerName = view.players.single { it.id == farmerId }.name
+        assertEquals("轮到 $farmerName（农民）出牌", view.statusMessage)
+    }
+
+    @Test
     fun everyRedealRandomlyChoosesFirstBidder() {
         val engine = GameEngine("123456", "随机首叫测试", "房主", Random(41))
         val second = engine.join("玩家二").playerId!!

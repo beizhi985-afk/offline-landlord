@@ -161,8 +161,27 @@ class GameEngine(
             result = result,
             roundHistory = roundHistory.toList(),
             revision = revision,
-            statusMessage = statusMessage,
+            statusMessage = visibleStatusMessage(),
         )
+    }
+
+    /**
+     * 牌局进行中只向界面展示当前操作方，避免断线、重连或托管事件
+     * 覆盖玩家真正需要关注的回合提示。等待房间和结算仍保留事件信息。
+     */
+    private fun visibleStatusMessage(): String {
+        val currentPlayer = players.firstOrNull { it.id == currentTurnId } ?: return statusMessage
+        return when (phase) {
+            GamePhase.BIDDING -> "轮到 ${currentPlayer.name} 叫地主"
+            GamePhase.DOUBLING -> "轮到 ${currentPlayer.name} 选择是否加倍"
+            GamePhase.PLAYING -> {
+                val side = if (currentPlayer.role == PlayerRole.LANDLORD) "地主" else "农民"
+                "轮到 ${currentPlayer.name}（$side）出牌"
+            }
+            GamePhase.WAITING,
+            GamePhase.FINISHED,
+            -> statusMessage
+        }
     }
 
     @Synchronized

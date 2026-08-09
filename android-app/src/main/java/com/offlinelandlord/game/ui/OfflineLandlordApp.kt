@@ -124,7 +124,7 @@ fun OfflineLandlordApp(viewModel: GameViewModel) {
 @Composable
 private fun HomeScreen(state: AppUiState, viewModel: GameViewModel, onShowUpdate: () -> Unit) {
     var playerName by rememberSaveable { mutableStateOf("玩家${(10..99).random()}") }
-    var hostIp by rememberSaveable { mutableStateOf("192.168.43.1") }
+    var hostIp by rememberSaveable { mutableStateOf("") }
     var roomCode by rememberSaveable { mutableStateOf("") }
     var portText by rememberSaveable { mutableStateOf("${state.port}") }
     var totalRounds by rememberSaveable { mutableStateOf(12) }
@@ -157,7 +157,7 @@ private fun HomeScreen(state: AppUiState, viewModel: GameViewModel, onShowUpdate
                     Column(Modifier.weight(1f)) {
                         Text("离线斗地主", fontSize = 28.sp, fontWeight = FontWeight.Black, color = Ink, maxLines = 1)
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("V3.3 · 清风牌局", color = PeachDeep, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                            Text("V3.7 · 清风牌局", color = PeachDeep, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                             Spacer(Modifier.width(8.dp))
                             Box(
                                 modifier = Modifier
@@ -244,7 +244,7 @@ private fun HomeScreen(state: AppUiState, viewModel: GameViewModel, onShowUpdate
                         OutlinedTextField(
                             value = hostIp,
                             onValueChange = { hostIp = it.take(45) },
-                            label = { Text("房主 IP") },
+                            label = { Text("房主 IP（不含端口）") },
                             singleLine = true,
                             shape = RoundedCornerShape(15.dp),
                             modifier = Modifier.weight(1.35f),
@@ -308,14 +308,14 @@ private fun UpdateNoticeDialog(onDismiss: () -> Unit) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("♠", color = PeachDeep, fontSize = 28.sp, fontWeight = FontWeight.Black)
                     Spacer(Modifier.width(10.dp))
-                    Text("V3.3 更新完成", fontSize = 22.sp, fontWeight = FontWeight.Black, color = Ink)
+                    Text("V3.7 更新完成", fontSize = 22.sp, fontWeight = FontWeight.Black, color = Ink)
                 }
                 Spacer(Modifier.height(14.dp))
                 Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(9.dp)) {
-                    Text("• 安装新版本后首次打开显示更新内容", color = Ink, fontSize = 13.sp)
-                    Text("• 每局随机决定第一位叫地主的玩家", color = Ink, fontSize = 13.sp)
-                    Text("• 12/24 局结束后生成整场排行榜", color = Ink, fontSize = 13.sp)
-                    Text("• 可查看每一局的输赢、分数变化与累计分", color = Ink, fontSize = 13.sp)
+                    Text("• 牌局中不再显示玩家断线或重新连接提示", color = Ink, fontSize = 13.sp)
+                    Text("• 叫地主阶段持续显示当前叫地主的玩家", color = Ink, fontSize = 13.sp)
+                    Text("• 加倍阶段持续显示当前选择加倍的玩家", color = Ink, fontSize = 13.sp)
+                    Text("• 出牌阶段显示玩家昵称及地主或农民身份", color = Ink, fontSize = 13.sp)
                 }
                 Spacer(Modifier.height(10.dp))
                 Text("提示内容保存在本机，不需要联网。", color = MutedInk, fontSize = 11.sp)
@@ -565,9 +565,7 @@ private fun GameTableScreen(state: AppUiState, viewModel: GameViewModel) {
                         cards = view.ownHand,
                         selectedIds = selectedIds,
                         enabled = canAct,
-                        onToggle = { card ->
-                            selectedIds = if (card.id in selectedIds) selectedIds - card.id else selectedIds + card.id
-                        },
+                        onSelectionChange = { selectedIds = it },
                         modifier = Modifier.weight(1f),
                     )
                     Spacer(Modifier.width(12.dp))

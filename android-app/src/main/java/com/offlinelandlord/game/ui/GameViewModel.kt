@@ -84,6 +84,14 @@ class GameViewModel : ViewModel() {
             _uiState.update { it.copy(errorMessage = "请输入房主 IP 和房间码") }
             return
         }
+        if (':' in host) {
+            _uiState.update { it.copy(errorMessage = "房主 IP 只填写地址，不要包含冒号和端口") }
+            return
+        }
+        if (port !in 1..65535) {
+            _uiState.update { it.copy(errorMessage = "端口必须是 1～65535") }
+            return
+        }
         leaveRoom()
         _uiState.update { it.copy(isBusy = true, errorMessage = null, connectionState = ConnectionState.CONNECTING) }
 
@@ -145,17 +153,16 @@ class GameViewModel : ViewModel() {
 
     private fun sendAction(action: PlayerAction) {
         val host = hostSession
-        if (host != null) {
-            viewModelScope.launch {
-                val result = host.sendAction(action)
-                if (!result.success) _uiState.update { it.copy(errorMessage = result.message) }
-            }
+        val activeClient = client
+        if (host == null && activeClient == null) {
+            _uiState.update { it.copy(errorMessage = "尚未加入房间") }
             return
         }
 
-        val result = client?.sendAction(action)
-            ?: return _uiState.update { it.copy(errorMessage = "尚未加入房间") }
-        if (!result.success) _uiState.update { it.copy(errorMessage = result.message) }
+        viewModelScope.launch {
+            val result = host?.sendAction(action) ?: activeClient!!.sendAction(action)
+            if (!result.success) _uiState.update { it.copy(errorMessage = result.message) }
+        }
     }
 
     override fun onCleared() {
