@@ -8,9 +8,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
-import androidx.lifecycle.viewmodel.compose.viewModel
-import com.offlinelandlord.game.ui.GameViewModel
-import com.offlinelandlord.game.ui.OfflineLandlordApp
+import com.offlinelandlord.game.app.OfflineGamesApp
 import com.offlinelandlord.game.ui.theme.OfflineLandlordTheme
 
 class MainActivity : ComponentActivity() {
@@ -21,8 +19,7 @@ class MainActivity : ComponentActivity() {
         enterImmersiveMode()
         setContent {
             OfflineLandlordTheme {
-                val gameViewModel: GameViewModel = viewModel()
-                OfflineLandlordApp(gameViewModel)
+                OfflineGamesApp()
             }
         }
     }

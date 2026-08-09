@@ -76,7 +76,10 @@ import com.offlinelandlord.game.ui.theme.RoseRed
 import com.offlinelandlord.game.ui.theme.Sunny
 
 @Composable
-fun OfflineLandlordApp(viewModel: GameViewModel) {
+fun OfflineLandlordApp(
+    viewModel: GameViewModel,
+    onBackToGameSelection: () -> Unit = {},
+) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val updatePreferences = remember {
@@ -92,7 +95,12 @@ fun OfflineLandlordApp(viewModel: GameViewModel) {
 
     Surface(modifier = Modifier.fillMaxSize(), color = Cream) {
         when (state.gameView?.phase) {
-            null -> HomeScreen(state, viewModel, onShowUpdate = { showUpdateDialog = true })
+            null -> HomeScreen(
+                state = state,
+                viewModel = viewModel,
+                onShowUpdate = { showUpdateDialog = true },
+                onBackToGameSelection = onBackToGameSelection,
+            )
             GamePhase.WAITING -> LobbyScreen(state, viewModel)
             GamePhase.BIDDING,
             GamePhase.DOUBLING,
@@ -122,7 +130,12 @@ fun OfflineLandlordApp(viewModel: GameViewModel) {
 }
 
 @Composable
-private fun HomeScreen(state: AppUiState, viewModel: GameViewModel, onShowUpdate: () -> Unit) {
+private fun HomeScreen(
+    state: AppUiState,
+    viewModel: GameViewModel,
+    onShowUpdate: () -> Unit,
+    onBackToGameSelection: () -> Unit,
+) {
     var playerName by rememberSaveable { mutableStateOf("玩家${(10..99).random()}") }
     var hostIp by rememberSaveable { mutableStateOf("") }
     var roomCode by rememberSaveable { mutableStateOf("") }
@@ -173,6 +186,11 @@ private fun HomeScreen(state: AppUiState, viewModel: GameViewModel, onShowUpdate
                             }
                         }
                     }
+                    FreshOutlineButton(
+                        text = "游戏选择",
+                        onClick = onBackToGameSelection,
+                        modifier = Modifier.width(88.dp).height(36.dp),
+                    )
                 }
 
                 Spacer(Modifier.height(16.dp))
