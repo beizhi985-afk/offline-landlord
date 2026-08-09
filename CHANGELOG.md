@@ -1,5 +1,24 @@
 # 更新日志
 
+## 阶段2 - 公共房间与 LAN 网络基础设施边界
+
+### 架构
+
+- 新增与游戏无关的 `network.transport`，包含 LAN 端点、TCP客户端、TCP服务端、连接标识和 UDP datagram 收发。
+- `LanGameClient` 保持原有 API，继续负责斗地主 V4 JOIN/ACTION/STATE、状态Flow、resumeToken和重连，只把原始Socket读写交给公共transport。
+- `LanGameServer` 继续负责斗地主 V4 解析、玩家与连接映射、revision转发和错误响应，只把监听、连接生命周期及原始字符串收发交给公共transport。
+- UDP datagram I/O与 `DDZ_DISCOVER_V4` / `DDZ_HOST_V4` 文本codec分离；线上请求、响应和字段顺序保持不变。
+
+### 兼容与测试
+
+- 网络协议仍为V4，没有增加`gameType`，没有改变WireType、WireEnvelope字段、房间码或断线8秒托管行为。
+- 新增5项纯TCP transport测试、1项纯UDP transport测试、6项V4 golden兼容测试、3项UDP discovery codec测试和1项真实TCP重连映射测试。
+- 原49项测试继续通过，连同阶段2新增16项共65/65项通过，0失败、0错误、0跳过。
+- 现有机器人压力入口完成2000/2000局；Android debug构建成功。
+- 没有修改GameEngine、GameModels、BotBrain、规则、计分、12/24局或加倍逻辑。
+- 没有开发UNO网络，没有引入第三方网络库，没有升级targetSdk或增加局域网权限。
+- 阶段2已完成自动测试、本机真实TCP回环测试及2000局机器人压力测试；本轮未重新执行三台Android真机热点验收，该风险已知并接受。
+
 ## 阶段1 - 多游戏入口与工程边界
 
 ### 新增
