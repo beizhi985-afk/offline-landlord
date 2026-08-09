@@ -76,10 +76,22 @@ class GameViewModel : ViewModel() {
     }
 
     fun joinDiscovered(room: DiscoveredRoom, playerName: String) {
-        joinRoom(room.host, room.port, room.roomCode, playerName)
+        joinRoomWithClient(room.host, room.port, room.roomCode, playerName) {
+            LanGameClient.forDiscoveredRoom(room)
+        }
     }
 
     fun joinRoom(host: String, port: Int, roomCode: String, playerName: String) {
+        joinRoomWithClient(host, port, roomCode, playerName) { LanGameClient() }
+    }
+
+    private fun joinRoomWithClient(
+        host: String,
+        port: Int,
+        roomCode: String,
+        playerName: String,
+        createClient: () -> LanGameClient,
+    ) {
         if (host.isBlank() || roomCode.isBlank()) {
             _uiState.update { it.copy(errorMessage = "请输入房主 IP 和房间码") }
             return
@@ -95,7 +107,7 @@ class GameViewModel : ViewModel() {
         leaveRoom()
         _uiState.update { it.copy(isBusy = true, errorMessage = null, connectionState = ConnectionState.CONNECTING) }
 
-        val newClient = LanGameClient()
+        val newClient = createClient()
         client = newClient
         sessionJobs += viewModelScope.launch {
             val result = newClient.connect(host.trim(), port, roomCode.trim(), playerName)

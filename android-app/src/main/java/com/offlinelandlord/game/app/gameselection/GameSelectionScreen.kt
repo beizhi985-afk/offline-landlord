@@ -29,7 +29,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.offlinelandlord.game.app.navigation.GameType
+import com.offlinelandlord.game.shared.GameType
 import com.offlinelandlord.game.ui.FreshScenicBackground
 import com.offlinelandlord.game.ui.SoftPanel
 import com.offlinelandlord.game.ui.theme.Ink

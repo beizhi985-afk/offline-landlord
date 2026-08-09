@@ -88,6 +88,7 @@ class HostGameSession(
             tcpPort = server.port,
             totalRounds = totalRounds,
             doublingEnabled = doublingEnabled,
+            playerCount = { _viewState.value?.players?.size ?: 1 },
         ).also {
             it.start()
         }

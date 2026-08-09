@@ -4,19 +4,19 @@
 
 ## 当前里程碑
 
-阶段2在阶段1多游戏应用壳之上建立公共 LAN transport 边界：
+阶段3在阶段2公共 LAN transport 之上建立 V5 多游戏网络协议：
 
 - 应用打开后先进入“离线牌局”游戏选择页。
 - 斗地主入口复用V3.7原有首页、房间、牌桌、规则和联机流程。
 - UNO当前仅提供“开发中”占位页，不包含牌组、规则、机器人、房间或网络实现。
-- 原始 TCP 客户端、TCP 服务端与 UDP datagram 收发已抽入不依赖游戏 core 的 `network.transport`。
-- `LanGameClient`、`LanGameServer` 与 `LandlordV4DiscoveryCodec` 继续承担斗地主 V4 协议适配，外部行为和 UI 调用方式不变。
-- 固定历史 V4 JSON 与 UDP 广播文本的 golden 测试用于防止后续重构意外破坏兼容性。
-- 应用显示名称改为“离线牌局”，`applicationId`仍为`com.offlinelandlord.game.v2`，网络协议仍为V4。
-- 原49项测试与阶段2新增16项测试全部通过，共65/65项。
-- 现有机器人压力入口完成2000/2000局，Android debug构建成功。
-- 本阶段没有实现UNO网络、没有引入第三方网络库，也没有升级到V5。
-- 阶段2已完成自动测试、本机真实TCP回环测试及2000局机器人压力测试；本轮未重新执行三台Android真机热点验收，该风险已知并接受。
+- `shared/GameType` 提供 `LANDLORD` / `UNO`，供应用壳与 V5 通用协议共同使用，不依赖 UI 或斗地主 core。
+- 新版斗地主客户端默认使用 V5；斗地主房主同时接受 V4 / V5，并按连接版本分别发送状态。
+- V5 通用信封包含 `gameType` 与泛型 `payload`，斗地主的 `PlayerAction` / `PlayerGameView` 位于独立 Landlord V5 adapter 中。
+- UDP 同时支持 V5 JSON 广告 `OFFLINE_GAMES_DISCOVER_V5` 和历史 V4 斗地主广告；同一房间去重时优先 V5，V4-only 房间仍可加入。
+- V4 JSON、`DDZ_DISCOVER_V4` 和 `DDZ_HOST_V4` 历史格式继续保留并有 golden 测试保护。
+- 原65项与阶段3新增28项自动测试共93/93项通过；本机真实 TCP 回环测试覆盖 V5、V4兼容、混合协议和 V5 重连，机器人压力测试完成2000/2000局，Android Debug 构建成功。
+- UNO仍只有“开发中”入口；本阶段未实现 UNO 规则、牌组、房间或网络会话，未引入第三方网络库。
+- `applicationId`仍为`com.offlinelandlord.game.v2`，应用版本仍为`0.3.7`；V5是新的多游戏网络协议。
 
 `v0.3.7` 是牌局回合提示优化版：
 

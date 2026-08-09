@@ -1,9 +1,6 @@
 package com.offlinelandlord.game.app.navigation
 
-enum class GameType {
-    LANDLORD,
-    UNO,
-}
+import com.offlinelandlord.game.shared.GameType
 
 enum class AppRoute {
     GAME_SELECTION,
