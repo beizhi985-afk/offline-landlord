@@ -3,14 +3,10 @@ package com.offlinelandlord.game.network
 import com.offlinelandlord.game.core.ActionResult
 import com.offlinelandlord.game.core.PlayerAction
 import com.offlinelandlord.game.core.PlayerGameView
-import java.io.BufferedReader
-import java.io.BufferedWriter
+import com.offlinelandlord.game.network.transport.LanEndpoint
+import com.offlinelandlord.game.network.transport.TcpClientTransport
 import java.io.Closeable
-import java.io.InputStreamReader
-import java.io.OutputStreamWriter
 import java.net.ConnectException
-import java.net.InetSocketAddress
-import java.net.Socket
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
 import java.util.UUID
@@ -40,14 +36,11 @@ enum class ConnectionState {
 class LanGameClient : Closeable {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val connectMutex = Mutex()
-    private val writeLock = Any()
     private val _viewState = MutableStateFlow<PlayerGameView?>(null)
     private val _connectionState = MutableStateFlow(ConnectionState.DISCONNECTED)
     private val _lastError = MutableStateFlow<String?>(null)
 
-    private var socket: Socket? = null
-    private var reader: BufferedReader? = null
-    private var writer: BufferedWriter? = null
+    private var transport: TcpClientTransport? = null
     private var readJob: Job? = null
     private var intentionallyClosed = false
     private var host = ""
@@ -101,22 +94,15 @@ class LanGameClient : Closeable {
     private suspend fun connectOnce(): ActionResult = withContext(Dispatchers.IO) {
         closeSocketOnly()
         runCatching {
-            // Do not reference `port` inside Socket.apply: Socket also has a
-            // `port` property whose value is 0 before connecting, and Kotlin
-            // resolves that receiver property before LanGameClient.port.
             val targetHost = this@LanGameClient.host
             val targetPort = this@LanGameClient.port
-            val newSocket = Socket()
-            socket = newSocket
-            newSocket.connect(InetSocketAddress(targetHost, targetPort), 5_000)
-            newSocket.tcpNoDelay = true
-            newSocket.keepAlive = true
-            newSocket.soTimeout = 10_000
-            val newReader = BufferedReader(InputStreamReader(newSocket.getInputStream(), Charsets.UTF_8))
-            val newWriter = BufferedWriter(OutputStreamWriter(newSocket.getOutputStream(), Charsets.UTF_8))
-            socket = newSocket
-            reader = newReader
-            writer = newWriter
+            val newTransport = TcpClientTransport()
+            transport = newTransport
+            newTransport.connect(
+                endpoint = LanEndpoint(targetHost, targetPort),
+                connectTimeoutMillis = 5_000,
+                readTimeoutMillis = 10_000,
+            )
 
             val requestId = UUID.randomUUID().toString()
             send(
@@ -129,7 +115,7 @@ class LanGameClient : Closeable {
                     resumeToken = resumeToken,
                 ),
             )
-            val responseLine = newReader.readLine() ?: error("房主没有返回加入结果")
+            val responseLine = newTransport.receive() ?: error("房主没有返回加入结果")
             val response = wireJson.decodeFromString(WireEnvelope.serializer(), responseLine)
             if (response.type == WireType.ERROR) error(response.message ?: "加入房间失败")
             if (response.type != WireType.JOIN_ACCEPTED) error("房主返回了未知响应")
@@ -138,7 +124,7 @@ class LanGameClient : Closeable {
             playerId = response.playerId ?: error("房主没有分配玩家编号")
             resumeToken = response.resumeToken ?: error("房主没有分配恢复令牌")
             _viewState.value = response.view
-            newSocket.soTimeout = 0
+            newTransport.setReadTimeoutMillis(0)
             _connectionState.value = ConnectionState.CONNECTED
             _lastError.value = null
             ActionResult.ok(response.message.orEmpty())
@@ -168,7 +154,7 @@ class LanGameClient : Closeable {
         readJob = scope.launch {
             try {
                 while (isActive && !intentionallyClosed) {
-                    val line = reader?.readLine() ?: break
+                    val line = transport?.receive() ?: break
                     val envelope = wireJson.decodeFromString(WireEnvelope.serializer(), line)
                     when (envelope.type) {
                         WireType.STATE -> envelope.view?.let { _viewState.value = it }
@@ -205,19 +191,12 @@ class LanGameClient : Closeable {
 
     private fun send(envelope: WireEnvelope) {
         val line = wireJson.encodeToString(WireEnvelope.serializer(), envelope)
-        synchronized(writeLock) {
-            val activeWriter = writer ?: error("连接已经关闭")
-            activeWriter.write(line)
-            activeWriter.newLine()
-            activeWriter.flush()
-        }
+        transport?.send(line) ?: error("连接已经关闭")
     }
 
     private fun closeSocketOnly() {
-        runCatching { socket?.close() }
-        socket = null
-        reader = null
-        writer = null
+        transport?.close()
+        transport = null
     }
 
     override fun close() {
