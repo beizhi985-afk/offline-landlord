@@ -72,6 +72,7 @@ class UnoEngine private constructor(
             currentPlayerId = currentSeat?.let { players[it].playerId },
             direction = direction,
             topDiscardCard = discardPile.last(),
+            drawPileCount = drawPile.size,
             activeColor = activeColor,
             phase = phase,
             roundNumber = roundNumber,
@@ -84,6 +85,7 @@ class UnoEngine private constructor(
             matchWinnerId = matchWinnerId,
             matchMode = matchMode,
             targetScore = targetScore,
+            lastRoundScore = lastRoundScore,
         )
     }
 

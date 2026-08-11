@@ -28,6 +28,7 @@ data class UnoGameView(
     val currentPlayerId: String?,
     val direction: UnoDirection,
     val topDiscardCard: UnoCard,
+    val drawPileCount: Int,
     val activeColor: UnoColor?,
     val phase: UnoPhase,
     val roundNumber: Int,
@@ -40,6 +41,7 @@ data class UnoGameView(
     val matchWinnerId: String?,
     val matchMode: UnoMatchMode,
     val targetScore: Int,
+    val lastRoundScore: Int,
 )
 
 enum class UnoDirection {
