@@ -323,6 +323,16 @@
 4. 创建对应 Git 标签，保留历史版本源码。
 
 这样后续 APK 可以直接覆盖升级，同时仍可通过 Git 标签查看或恢复任意历史版本。
+## stage7B - UNO LAN rooms and Compose multiplayer table
+
+Implementation branch: `feat/uno-lan-compose-ui`.
+
+- UNO home now exposes LAN play.
+- Added host/join room flows, UNO-only V5 discovery, six-digit room codes, lobby readiness and host bot controls.
+- Added LAN table actions, private-hand projection, connection state and bounded resume-token reconnect.
+- Preserved V5/V4 transport and UNO rules; no version bump and no main/tag merge in this step.
+- Added controller/state tests and one loopback host/guest flow. Physical multi-device acceptance remains Stage7C work.
+
 ## stage7A - UNO V5 LAN core
 
 - Added a transport-independent authoritative `UnoHostSession` with serialized mutations, request-id idempotency, revision checks, stable seats, resume tokens, disconnect bot takeover, and reconnect restoration.
