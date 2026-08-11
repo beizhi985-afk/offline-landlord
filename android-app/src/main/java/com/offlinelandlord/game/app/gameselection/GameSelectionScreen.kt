@@ -71,8 +71,8 @@ fun GameSelectionScreen(onGameSelected: (GameType) -> Unit) {
                 )
                 GameOptionCard(
                     title = "UNO",
-                    description = "2～4人卡牌游戏",
-                    status = "开发中",
+                    description = "单机 · 1名真人与机器人",
+                    status = "可游玩",
                     symbol = "UNO",
                     accent = LavenderDeep,
                     tint = Lavender,

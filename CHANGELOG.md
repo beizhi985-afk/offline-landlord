@@ -1,5 +1,35 @@
 # 更新日志
 
+## UNO 背景图更新
+
+- 新增 UNO 专用离线湖畔露台背景 `uno_bg_lakeside.png`，以独立 `UnoBackground` 组件接入 UNO 首页、单机配置页与横屏牌桌。
+- 背景以横屏 `ContentScale.Crop` 铺满页面，并使用轻量渐变保障内容可读性；斗地主原有背景及功能未改动。
+
+## 阶段6 - UNO单机Compose可玩UI
+
+### 单机流程与牌桌
+
+- 游戏选择中的UNO由“开发中”升级为可游玩的单机入口，新增UNO首页、2～4人配置页和完整横屏牌桌；局域网按钮保持禁用并显示“敬请期待”。
+- 固定1名真人与1～3名NORMAL机器人，支持Quick一局决胜和500分Points积分赛，玩家命名为“你”“机器人1～3”。
+- 新增UNO专用牌面，清楚显示0～9、Skip、Reverse、+2、Wild和+4；四色牌同时使用文字/符号，未复用斗地主纸牌组件。
+- 真人手牌使用横向列表，合法牌由Engine查询结果点亮；非法牌和非真人回合不可点击。支持摸一张、AFTER_DRAW打出刚摸的牌或不出。
+- 新增不可绕过的Wild选色Dialog、手动UNO按钮、抓UNO按钮、Bot UNO事件提示、当前玩家、方向、有效颜色、牌堆数量和背面牌数量。
+- Quick与Points均提供结算、排行榜、下一局、再来一局/场和返回UNO首页；牌局中退出需要二次确认。
+
+### Controller与边界
+
+- 新增`UnoSinglePlayerController`、`UnoUiState`、`UnoUiStateMapper`和`UnoGameViewModel`。Compose只消费只读状态并发送`UnoAction`，所有规则变化继续由`UnoEngine.applyAction`执行。
+- 真人动作和Bot动作由同一Mutex串行；单个动作链支持Bot连续DeclareUno/PlayCard、Wild/ChooseColor和Draw/PlayDrawnCard。
+- Bot延迟位于Controller并可注入，生产为短协程延迟、测试为0；集中维护单一Job以防Compose重组触发重复动作，动作进行中拒绝重复点击。
+- UI只获得真人完整手牌、公共状态和Bot剩余牌数，不暴露Bot牌面、牌色或`cardId`；未复制`UnoRules`或Wild Draw Four合法性。
+
+### 测试与范围
+
+- 阶段6新增36项自动测试，总计262/262通过，0失败、0错误、0跳过。
+- UNO单机Controller Quick完成1000/1000局，Points 500完成100/100场；原UNO随机2000、Bot Quick 5000、Bot Points 500场及斗地主2000局压力测试继续通过。
+- Android Debug完整构建成功，应用名称、applicationId、0.3.7版本号和SDK保持不变。
+- 没有新增UNO房间、LAN、UDP发现、TCP会话或V5 adapter；阶段7目标为UNO V5局域网联机。
+
 ## 阶段5 - UNO NORMAL 机器人
 
 ### 新增
