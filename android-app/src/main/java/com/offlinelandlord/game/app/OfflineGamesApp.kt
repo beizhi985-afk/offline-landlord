@@ -18,6 +18,10 @@ import com.offlinelandlord.game.uno.singleplayer.UnoSinglePlayerConfig
 import com.offlinelandlord.game.uno.singleplayer.ui.UnoGameScreen
 import com.offlinelandlord.game.uno.singleplayer.ui.UnoHomeScreen
 import com.offlinelandlord.game.uno.singleplayer.ui.UnoSinglePlayerSetupScreen
+import com.offlinelandlord.game.uno.lan.UnoLanViewModel
+import com.offlinelandlord.game.uno.lan.ui.UnoLanGameScreen
+import com.offlinelandlord.game.uno.lan.ui.UnoLanHomeScreen
+import com.offlinelandlord.game.uno.lan.ui.UnoLanLobbyScreen
 
 @Composable
 fun OfflineGamesApp() {
@@ -26,6 +30,7 @@ fun OfflineGamesApp() {
     val updateNavigation: (AppNavigationState) -> Unit = { routeName = it.route.name }
     var unoPlayerCount by rememberSaveable { mutableStateOf(2) }
     var unoMatchModeName by rememberSaveable { mutableStateOf(UnoMatchMode.QUICK.name) }
+    val unoLanViewModel: UnoLanViewModel = viewModel()
 
     when (navigation.route) {
         AppRoute.GAME_SELECTION -> GameSelectionScreen(
@@ -44,6 +49,7 @@ fun OfflineGamesApp() {
 
         AppRoute.UNO_HOME -> UnoHomeScreen(
             onSinglePlayer = { updateNavigation(navigation.openUnoSetup()) },
+            onLanPlayer = { updateNavigation(navigation.openUnoLanHome()) },
             onBackToGameSelection = { updateNavigation(navigation.backToGameSelection()) },
         )
 
@@ -73,5 +79,28 @@ fun OfflineGamesApp() {
                 },
             )
         }
+
+        AppRoute.UNO_LAN_HOME -> UnoLanHomeScreen(
+            viewModel = unoLanViewModel,
+            onLobby = { updateNavigation(navigation.openUnoLanLobby()) },
+            onBack = { updateNavigation(navigation.backToUnoHome()) },
+        )
+
+        AppRoute.UNO_LAN_LOBBY -> UnoLanLobbyScreen(
+            viewModel = unoLanViewModel,
+            onGame = { updateNavigation(navigation.startUnoLanGame()) },
+            onBack = {
+                unoLanViewModel.leaveRoom()
+                updateNavigation(navigation.backToUnoHome())
+            },
+        )
+
+        AppRoute.UNO_LAN_GAME -> UnoLanGameScreen(
+            viewModel = unoLanViewModel,
+            onBack = {
+                unoLanViewModel.leaveRoom()
+                updateNavigation(navigation.backToUnoHome())
+            },
+        )
     }
 }

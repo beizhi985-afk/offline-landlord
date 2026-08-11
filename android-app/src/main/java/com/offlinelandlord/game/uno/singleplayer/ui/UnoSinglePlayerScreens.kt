@@ -72,6 +72,7 @@ import kotlinx.coroutines.delay
 @Composable
 fun UnoHomeScreen(
     onSinglePlayer: () -> Unit,
+    onLanPlayer: () -> Unit,
     onBackToGameSelection: () -> Unit,
 ) {
     UnoBackground(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
@@ -97,9 +98,9 @@ fun UnoHomeScreen(
                     FreshButton("单机游戏", onSinglePlayer, Modifier.width(210.dp).height(48.dp))
                     Spacer(Modifier.height(if (compact) 4.dp else 6.dp))
                     FreshOutlineButton(
-                        text = "局域网游戏 · 敬请期待",
-                        onClick = {},
-                        enabled = false,
+                        text = "局域网游戏",
+                        onClick = onLanPlayer,
+                        enabled = true,
                         modifier = Modifier.width(210.dp).height(45.dp),
                     )
                     Spacer(Modifier.weight(1f))

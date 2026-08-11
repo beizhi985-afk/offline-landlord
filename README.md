@@ -132,6 +132,13 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\07-构建与交付\本
 android-app/build/outputs/apk/debug/android-app-debug.apk
 ```
 
+## Stage7B - UNO LAN Compose multiplayer (implementation branch)
+
+- UNO home now exposes LAN play with nearby V5 discovery and manual host/IP/room-code join.
+- Added host lobby, readiness, bot-seat controls and an authoritative Compose LAN table.
+- Opponent private hands remain hidden; bounded resume-token reconnect is handled by the controller.
+- No protocol, rule, dependency, version or applicationId change. Physical multi-device acceptance is deferred to Stage7C.
+
 ## 离线保证
 
 应用没有登录、广告、分析 SDK、在线字体、远程图片、云数据库或在线版本检查。清单里的 `INTERNET` 权限仅用于安卓本地 TCP/UDP 套接字。

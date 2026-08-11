@@ -8,6 +8,9 @@ enum class AppRoute {
     UNO_HOME,
     UNO_SETUP,
     UNO_GAME,
+    UNO_LAN_HOME,
+    UNO_LAN_LOBBY,
+    UNO_LAN_GAME,
 }
 
 data class AppNavigationState(
@@ -24,4 +27,8 @@ data class AppNavigationState(
     fun openUnoSetup(): AppNavigationState = copy(route = AppRoute.UNO_SETUP)
     fun startUnoGame(): AppNavigationState = copy(route = AppRoute.UNO_GAME)
     fun backToUnoHome(): AppNavigationState = copy(route = AppRoute.UNO_HOME)
+    fun openUnoLanHome(): AppNavigationState = copy(route = AppRoute.UNO_LAN_HOME)
+    fun openUnoLanLobby(): AppNavigationState = copy(route = AppRoute.UNO_LAN_LOBBY)
+    fun startUnoLanGame(): AppNavigationState = copy(route = AppRoute.UNO_LAN_GAME)
+    fun backToUnoLanHome(): AppNavigationState = copy(route = AppRoute.UNO_LAN_HOME)
 }
