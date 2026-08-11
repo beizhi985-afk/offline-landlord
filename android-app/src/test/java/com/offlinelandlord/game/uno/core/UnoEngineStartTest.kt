@@ -77,7 +77,10 @@ class UnoEngineStartTest {
         repeat(250) { seed ->
             val state = requireNotNull(UnoEngine.start(players(2 + seed % 3), Random(seed)).engine).state
             assertNotEquals(UnoCardType.WILD_DRAW_FOUR, state.discardPile.last().type)
-            assertEquals(108, UnoTestFixtures.allCards(state).size)
+            val cards = UnoTestFixtures.allCards(state)
+            assertEquals(108, cards.size)
+            assertEquals(108, cards.map(UnoCard::cardId).distinct().size)
+            assertEquals(4, cards.count { it.type == UnoCardType.WILD_DRAW_FOUR })
         }
     }
 
@@ -102,16 +105,24 @@ class UnoEngineStartTest {
     }
 
     @Test
-    fun initialReverseChangesDirectionForThreePlayers() {
-        val state = startedWith(UnoCardType.REVERSE, 3).state
-        assertEquals(UnoDirection.COUNTER_CLOCKWISE, state.direction)
-        assertEquals(state.players[state.baseStartingSeat].playerId, state.currentPlayerId)
+    fun initialReverseTwoPlayersGivesTheFirstTurnToTheOtherPlayer() {
+        val state = startedWith(UnoCardType.REVERSE, 2).state
+        assertEquals(UnoDirection.CLOCKWISE, state.direction)
+        assertEquals(state.players[(state.baseStartingSeat + 1) % 2].playerId, state.currentPlayerId)
     }
 
     @Test
-    fun initialReverseActsAsSkipInTwoPlayerGame() {
-        val state = startedWith(UnoCardType.REVERSE, 2).state
-        assertEquals(state.players[(state.baseStartingSeat + 1) % 2].playerId, state.currentPlayerId)
+    fun initialReverseThreePlayersReversesThenMovesToThePlayerBeforeBaseline() {
+        val state = startedWith(UnoCardType.REVERSE, 3).state
+        assertEquals(UnoDirection.COUNTER_CLOCKWISE, state.direction)
+        assertEquals(state.players[(state.baseStartingSeat + 2) % 3].playerId, state.currentPlayerId)
+    }
+
+    @Test
+    fun initialReverseFourPlayersReversesThenMovesToThePlayerBeforeBaseline() {
+        val state = startedWith(UnoCardType.REVERSE, 4).state
+        assertEquals(UnoDirection.COUNTER_CLOCKWISE, state.direction)
+        assertEquals(state.players[(state.baseStartingSeat + 3) % 4].playerId, state.currentPlayerId)
     }
 
     @Test
