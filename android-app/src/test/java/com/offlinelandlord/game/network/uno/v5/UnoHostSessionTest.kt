@@ -6,10 +6,11 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import kotlin.random.Random
 
 class UnoHostSessionTest {
     private fun started(mode: UnoV5GameMode = UnoV5GameMode.QUICK): Triple<UnoHostSession, String, String> = runBlocking {
-        val session = UnoHostSession(hostName = "Host", config = UnoV5RoomConfig(2, mode))
+        val session = UnoHostSession(hostName = "Host", config = UnoV5RoomConfig(2, mode), random = Random(20260811))
         val guest = session.join("Guest").value!!
         assertTrue(session.ready(session.hostPlayerId).success)
         assertTrue(session.ready(guest.playerId).success)
@@ -112,7 +113,8 @@ class UnoHostSessionTest {
     @Test fun illegalCardIsRejectedWithoutChangingRevision() = runBlocking {
         val (session, guest, _) = started()
         val revision = session.currentRevision()
-        val result = session.submitAction(guest, "bad-card", revision, UnoV5ActionPayload(UnoV5ActionType.PLAY_CARD, cardId = "missing"))
+        val actor = session.viewFor(guest)!!.game!!.currentPlayerId!!
+        val result = session.submitAction(actor, "bad-card", revision, UnoV5ActionPayload(UnoV5ActionType.PLAY_CARD, cardId = "missing"))
         assertFalse(result.success)
         assertEquals(UnoV5ErrorCode.ILLEGAL_ACTION, result.error)
         assertEquals(revision, session.currentRevision())
@@ -128,12 +130,15 @@ class UnoHostSessionTest {
 
     @Test fun reconnectRestoresOriginalSeatAndHand() = runBlocking {
         val (session, guest, token) = started()
-        val before = session.viewFor(guest)!!.game!!
-        session.disconnect(guest)
-        val result = session.reconnect(guest, token)
+        val guestView = session.viewFor(guest)!!.game!!
+        val reconnectPlayer = guestView.players.first { it.playerId != guestView.currentPlayerId }.playerId
+        val reconnectToken = if (reconnectPlayer == guest) token else session.hostResumeToken
+        val before = session.viewFor(reconnectPlayer)!!.game!!
+        session.disconnect(reconnectPlayer)
+        val result = session.reconnect(reconnectPlayer, reconnectToken)
         assertTrue(result.success)
         assertEquals(before.ownHand, result.value!!.room.game!!.ownHand)
-        assertEquals(before.players.first { it.playerId == guest }.seatIndex, result.value.room.players.first { it.playerId == guest }.seatIndex)
+        assertEquals(before.players.first { it.playerId == reconnectPlayer }.seatIndex, result.value.room.players.first { it.playerId == reconnectPlayer }.seatIndex)
     }
 
     @Test fun invalidTokenCannotReconnect() = runBlocking {
