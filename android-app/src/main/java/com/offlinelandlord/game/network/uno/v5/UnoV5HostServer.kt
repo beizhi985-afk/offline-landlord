@@ -71,7 +71,7 @@ class UnoV5HostServer(
     }
 
     private suspend fun handleAction(connectionId: String, envelope: V5WireEnvelope) {
-        val playerId = connectionPlayers[connectionId] ?: envelope.playerId
+        val playerId = connectionPlayers[connectionId]
             ?: run { sendError(connectionId, envelope.requestId, UnoV5ErrorCode.PLAYER_NOT_FOUND); return }
         val payload = UnoV5PayloadCodec.decodeAction(envelope.payload)
             ?: run { sendError(connectionId, envelope.requestId, UnoV5ErrorCode.INVALID_ACTION); return }
@@ -85,7 +85,8 @@ class UnoV5HostServer(
     }
 
     private suspend fun onDisconnect(connectionId: String) {
-        val playerId = connectionPlayers.remove(connectionId) ?: return
+        val playerId = connectionPlayers.remove(connectionId)
+            ?: run { replacedConnections.remove(connectionId); return }
         if (replacedConnections.remove(connectionId)) return
         playerConnections.remove(playerId, connectionId)
         session.disconnect(playerId)
