@@ -41,7 +41,7 @@ The human driver selects only from the public `legalActions`, `legalPlayableCard
 - Full Android JUnit suite: 331 / 331 passed, 0 failed, 0 errors, 0 skipped.
 - Existing HostSession tests had nondeterministic assumptions about whose turn it was and about disconnecting the current player. The test-only correction fixes the seed and chooses the public current/non-current player without changing production behavior.
 - Existing UNO stress tests remain in the suite and ran as part of the 331-test run: random Quick 2,000; bot Quick 5,000; bot Points 500; single-player Quick 1,000; single-player Points 100.
-- No executable Landlord 2,000 stress test is present in the current test source; it is not claimed as run by this matrix.
+- Landlord bot pressure: `BotSimulationTest.twoBotsCanFillRoomAndCompleteManyGamesWithoutIllegalActions` was run with `BOT_SIMULATION_GAMES=2000`: 2,000 / 2,000 passed.
 
 ### Minimal adapter fix found by the real TCP flow
 
