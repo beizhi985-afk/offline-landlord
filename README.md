@@ -135,3 +135,6 @@ android-app/build/outputs/apk/debug/android-app-debug.apk
 ## 离线保证
 
 应用没有登录、广告、分析 SDK、在线字体、远程图片、云数据库或在线版本检查。清单里的 `INTERNET` 权限仅用于安卓本地 TCP/UDP 套接字。
+## Stage 7A UNO LAN core
+
+The `feat/uno-lan-v5-core` branch adds the first UNO V5 LAN authority without opening a UI entry. Existing transport and generic V5 envelopes remain unchanged. `UnoHostSession` is the only authority and feeds the existing `UnoEngine`/`UnoBot`; player-specific projections keep opponent cards private. Host migration is intentionally out of scope.

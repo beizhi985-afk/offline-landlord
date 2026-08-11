@@ -323,3 +323,8 @@
 4. 创建对应 Git 标签，保留历史版本源码。
 
 这样后续 APK 可以直接覆盖升级，同时仍可通过 Git 标签查看或恢复任意历史版本。
+## stage7A - UNO V5 LAN core
+
+- Added a transport-independent authoritative `UnoHostSession` with serialized mutations, request-id idempotency, revision checks, stable seats, resume tokens, disconnect bot takeover, and reconnect restoration.
+- Added UNO-specific V5 DTOs/payload mapping and a thin TCP adapter using the existing V5 envelope (`protocolVersion=5`, `gameType=UNO`). Private STATE projections expose only the local hand; opponents remain counts only.
+- Added QUICK and fixed `POINTS_500` room configuration, 2-4 seats, ready/start/bot management, and development tests. Compose LAN entry remains disabled; host migration is not supported.
