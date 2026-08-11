@@ -45,6 +45,10 @@ Controller维护唯一`actionChainJob`和一个`Mutex`。真人动作提交后�
 
 测试覆盖2/3/4人配置、固定单真人、Quick/Points、真人动作、Bot自动与连续动作、Wild选色、宣告UNO、Round/Match停止、下一局、重复调度、UI映射、隐藏手牌隔离与导航。
 
+## 开发环境已知问题
+
+在 Windows 中文仓库路径下直接运行 Gradle JVM 测试，测试运行器可能在加载测试类时报告 `ClassNotFoundException`。这是已知的构建环境路径问题，不代表 UNO 功能断言失败。使用指向同一仓库的 ASCII junction 路径 `C:\Users\Administrator\AppData\Local\Temp\offline-landlord-build` 执行相同测试，可正常完成全部测试。
+
 ## 真机与下一阶段
 
 人工清单位于`docs/release/stage6-uno-singleplayer-device-test.md`。本阶段不伪造真机结果，清单状态默认待验收。
