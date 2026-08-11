@@ -6,6 +6,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -14,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
@@ -73,29 +75,36 @@ fun UnoHomeScreen(
     onBackToGameSelection: () -> Unit,
 ) {
     UnoBackground(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
-        SoftPanel(
-            modifier = Modifier.align(Alignment.Center).width(580.dp).height(330.dp),
-            tint = Color(0xF2FFFFFF),
+        BoxWithConstraints(
+            modifier = Modifier
+                .align(Alignment.Center)
+                .width(580.dp)
+                .fillMaxHeight(0.94f)
+                .heightIn(max = 350.dp),
         ) {
-            Column(
-                Modifier.fillMaxSize().padding(30.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
-            ) {
-                Text("UNO", color = PeachDeep, fontSize = 42.sp, fontWeight = FontWeight.Black)
-                Text("轻松单机牌局", color = Ink, fontSize = 22.sp, fontWeight = FontWeight.Black)
-                Text("1名真人 · 1～3名NORMAL机器人", color = MutedInk, fontSize = 13.sp)
-                Spacer(Modifier.height(22.dp))
-                FreshButton("单机游戏", onSinglePlayer, Modifier.width(210.dp).height(48.dp))
-                Spacer(Modifier.height(10.dp))
-                FreshOutlineButton(
-                    text = "局域网游戏 · 敬请期待",
-                    onClick = {},
-                    enabled = false,
-                    modifier = Modifier.width(210.dp).height(45.dp),
-                )
-                Spacer(Modifier.height(16.dp))
-                TextButton(onClick = onBackToGameSelection) { Text("返回游戏选择", color = LavenderDeep) }
+            val compact = maxHeight < 320.dp
+            SoftPanel(Modifier.fillMaxSize(), tint = Color(0xF2FFFFFF)) {
+                Column(
+                    Modifier
+                        .fillMaxSize()
+                        .padding(start = 30.dp, top = if (compact) 10.dp else 20.dp, end = 30.dp, bottom = 20.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Text("UNO", color = PeachDeep, fontSize = 42.sp, fontWeight = FontWeight.Black)
+                    Text("轻松单机牌局", color = Ink, fontSize = 22.sp, fontWeight = FontWeight.Black)
+                    Text("1名真人 · 1～3名NORMAL机器人", color = MutedInk, fontSize = 13.sp)
+                    Spacer(Modifier.height(if (compact) 8.dp else 10.dp))
+                    FreshButton("单机游戏", onSinglePlayer, Modifier.width(210.dp).height(48.dp))
+                    Spacer(Modifier.height(if (compact) 4.dp else 6.dp))
+                    FreshOutlineButton(
+                        text = "局域网游戏 · 敬请期待",
+                        onClick = {},
+                        enabled = false,
+                        modifier = Modifier.width(210.dp).height(45.dp),
+                    )
+                    Spacer(Modifier.weight(1f))
+                    TextButton(onClick = onBackToGameSelection) { Text("返回游戏选择", color = LavenderDeep) }
+                }
             }
         }
     }
