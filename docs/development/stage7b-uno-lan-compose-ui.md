@@ -32,7 +32,7 @@ Compose screens -> UnoLanViewModel -> UnoLanController
 
 - Existing Stage7A tests remain unchanged.
 - Stage7B adds controller/state contract coverage and a loopback host/guest flow in `UnoLanControllerTest`.
-- The source tree contains 371 `@Test` methods after Stage7B test additions.
+- The source tree contains 372 `@Test` methods after Stage7B test additions (331 existing tests plus 41 Stage7B tests).
 - Android `compileDebugKotlin` passed on the ASCII-path build copy. The Windows test task reached Java compilation but was blocked by the known SDK/JDK `AccessDenied` lock on `core-for-system-modules.jar`; this is an environment result, not a claimed test pass.
 
 ## Device acceptance boundary
