@@ -442,7 +442,7 @@ class UnoEngine private constructor(
                     setTurn(advanceSeat(startingSeat, 1))
                 } else {
                     direction = direction.reversed()
-                    setTurn(startingSeat)
+                    setTurn(advanceSeat(startingSeat, 1))
                 }
             }
 

@@ -117,6 +117,22 @@ class UnoEngineActionTest {
     }
 
     @Test
+    fun afterDrawWildDrawFourIsBlockedWhenTheOriginalHandHasTheActiveColor() {
+        val four = wildDrawFour("drawn-four")
+        val oldRed = number("old-red", UnoColor.RED, 8)
+        val engine = engine(
+            hands = listOf(listOf(oldRed, four), listOf(number("p1", UnoColor.YELLOW, 1))),
+            top = top,
+            phase = UnoPhase.AFTER_DRAW,
+            drawnCardId = four.cardId,
+        )
+
+        val result = engine.applyAction("p0", UnoAction.PlayDrawnCard(four.cardId))
+
+        assertEquals(UnoErrorCode.ILLEGAL_WILD_DRAW_FOUR, result.error?.code)
+    }
+
+    @Test
     fun drawnPlayableCardCanBePlayedImmediately() {
         val drawn = number("drawn", UnoColor.RED, 3)
         val engine = engine(
@@ -231,6 +247,24 @@ class UnoEngineActionTest {
     }
 
     @Test
+    fun chosenWildColorControlsTheNextPlayersLegalCards() {
+        val wild = wild("chosen-wild")
+        val blue = number("blue", UnoColor.BLUE, 7)
+        val red = number("red", UnoColor.RED, 9)
+        val engine = engine(
+            hands = listOf(listOf(wild, filler), listOf(blue, red)),
+            top = top,
+        )
+
+        assertTrue(engine.applyAction("p0", UnoAction.PlayCard(wild.cardId)).success)
+        assertTrue(engine.applyAction("p0", UnoAction.ChooseColor(UnoColor.BLUE)).success)
+
+        assertEquals("p1", engine.state.currentPlayerId)
+        assertEquals(UnoColor.BLUE, engine.state.activeColor)
+        assertEquals(listOf(blue), engine.legalPlayableCards("p1"))
+    }
+
+    @Test
     fun wildDrawFourChoosesColorThenPenalizesAndSkips() {
         val four = wildDrawFour()
         val penalties = (1..4).map { number("penalty-$it", UnoColor.BLUE, it) }
@@ -261,6 +295,39 @@ class UnoEngineActionTest {
         )
         engine.applyAction("p0", UnoAction.PlayCard(first.cardId))
         val result = engine.applyAction("p1", UnoAction.PlayCard(response.cardId))
+        assertEquals(UnoErrorCode.NOT_YOUR_TURN, result.error?.code)
+    }
+
+    @Test
+    fun drawTwoCannotBeAnsweredWithWildDrawFourBecauseThePenalizedPlayerIsSkipped() {
+        val drawTwo = action("draw-two", UnoColor.RED, UnoCardType.DRAW_TWO)
+        val response = wildDrawFour("response-four")
+        val engine = engine(
+            hands = listOf(listOf(drawTwo, filler), listOf(response), listOf(number("p2", UnoColor.YELLOW, 1))),
+            top = top,
+            drawPile = listOf(number("d1", UnoColor.GREEN, 1), number("d2", UnoColor.GREEN, 2)),
+        )
+
+        assertTrue(engine.applyAction("p0", UnoAction.PlayCard(drawTwo.cardId)).success)
+        val result = engine.applyAction("p1", UnoAction.PlayCard(response.cardId))
+
+        assertEquals(UnoErrorCode.NOT_YOUR_TURN, result.error?.code)
+    }
+
+    @Test
+    fun wildDrawFourCannotBeAnsweredWithDrawTwoBecauseThePenalizedPlayerIsSkipped() {
+        val four = wildDrawFour("first-four")
+        val response = action("response-two", UnoColor.BLUE, UnoCardType.DRAW_TWO)
+        val engine = engine(
+            hands = listOf(listOf(four, filler), listOf(response), listOf(number("p2", UnoColor.YELLOW, 1))),
+            top = top,
+            drawPile = (1..4).map { number("d$it", UnoColor.GREEN, it) },
+        )
+
+        assertTrue(engine.applyAction("p0", UnoAction.PlayCard(four.cardId)).success)
+        assertTrue(engine.applyAction("p0", UnoAction.ChooseColor(UnoColor.BLUE)).success)
+        val result = engine.applyAction("p1", UnoAction.PlayCard(response.cardId))
+
         assertEquals(UnoErrorCode.NOT_YOUR_TURN, result.error?.code)
     }
 
