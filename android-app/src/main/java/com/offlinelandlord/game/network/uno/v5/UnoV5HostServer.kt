@@ -75,6 +75,23 @@ class UnoV5HostServer(
             ?: run { sendError(connectionId, envelope.requestId, UnoV5ErrorCode.PLAYER_NOT_FOUND); return }
         val payload = UnoV5PayloadCodec.decodeAction(envelope.payload)
             ?: run { sendError(connectionId, envelope.requestId, UnoV5ErrorCode.INVALID_ACTION); return }
+        val roomAction = when (payload.action) {
+            UnoV5ActionType.READY -> session.ready(playerId, envelope.requestId ?: UUID.randomUUID().toString())
+            UnoV5ActionType.UNREADY -> session.unready(playerId, envelope.requestId ?: UUID.randomUUID().toString())
+            UnoV5ActionType.START_GAME -> session.startGame(playerId, envelope.requestId ?: UUID.randomUUID().toString())
+            UnoV5ActionType.ADD_BOT -> session.addBot(playerId)
+            UnoV5ActionType.REMOVE_BOT -> session.removeBot(playerId, payload.targetPlayerId.orEmpty())
+            else -> null
+        }
+        if (roomAction != null) {
+            if (!roomAction.success) {
+                sendError(connectionId, envelope.requestId, roomAction.error ?: UnoV5ErrorCode.ILLEGAL_ACTION, roomAction.detail)
+                roomAction.value?.let { sendState(connectionId, it) }
+            } else {
+                broadcastStates()
+            }
+            return
+        }
         val result = session.submitAction(playerId, envelope.requestId ?: UUID.randomUUID().toString(), envelope.expectedRevision, payload)
         if (!result.success) {
             sendError(connectionId, envelope.requestId, result.error ?: UnoV5ErrorCode.ILLEGAL_ACTION, result.detail)
