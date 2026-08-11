@@ -1,5 +1,10 @@
 # 更新日志
 
+## UNO 背景图更新
+
+- 新增 UNO 专用离线湖畔露台背景 `uno_bg_lakeside.png`，以独立 `UnoBackground` 组件接入 UNO 首页、单机配置页与横屏牌桌。
+- 背景以横屏 `ContentScale.Crop` 铺满页面，并使用轻量渐变保障内容可读性；斗地主原有背景及功能未改动。
+
 ## 阶段6 - UNO单机Compose可玩UI
 
 ### 单机流程与牌桌

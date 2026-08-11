@@ -46,7 +46,6 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.offlinelandlord.game.ui.FreshButton
 import com.offlinelandlord.game.ui.FreshOutlineButton
-import com.offlinelandlord.game.ui.FreshScenicBackground
 import com.offlinelandlord.game.ui.SoftPanel
 import com.offlinelandlord.game.ui.theme.Ink
 import com.offlinelandlord.game.ui.theme.Lavender
@@ -61,6 +60,7 @@ import com.offlinelandlord.game.uno.core.UnoColor
 import com.offlinelandlord.game.uno.core.UnoDirection
 import com.offlinelandlord.game.uno.core.UnoMatchMode
 import com.offlinelandlord.game.uno.core.UnoPhase
+import com.offlinelandlord.game.uno.ui.UnoBackground
 import com.offlinelandlord.game.uno.singleplayer.UnoGameViewModel
 import com.offlinelandlord.game.uno.singleplayer.UnoSinglePlayerConfig
 import com.offlinelandlord.game.uno.singleplayer.UnoUiPlayer
@@ -72,7 +72,7 @@ fun UnoHomeScreen(
     onSinglePlayer: () -> Unit,
     onBackToGameSelection: () -> Unit,
 ) {
-    FreshScenicBackground(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
+    UnoBackground(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
         SoftPanel(
             modifier = Modifier.align(Alignment.Center).width(580.dp).height(330.dp),
             tint = Color(0xF2FFFFFF),
@@ -112,7 +112,7 @@ fun UnoSinglePlayerSetupScreen(
     var matchModeName by rememberSaveable { mutableStateOf(initialMatchMode.name) }
     val matchMode = UnoMatchMode.valueOf(matchModeName)
     BackHandler(onBack = onBack)
-    FreshScenicBackground(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
+    UnoBackground(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
         SoftPanel(
             Modifier.align(Alignment.Center).width(650.dp).height(360.dp),
             tint = Color(0xF3FFFFFF),
@@ -183,7 +183,7 @@ fun UnoGameScreen(
         }
     }
 
-    FreshScenicBackground(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
+    UnoBackground(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
         if (!state.gameStarted) {
             SoftPanel(Modifier.align(Alignment.Center).width(260.dp).height(100.dp)) {
                 Text("正在准备UNO牌局…", Modifier.align(Alignment.Center), color = Ink, fontWeight = FontWeight.Black)
