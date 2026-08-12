@@ -76,19 +76,6 @@ fun UnoCardView(
     }
 }
 
-@Composable
-fun UnoCardBack(modifier: Modifier = Modifier) {
-    Box(
-        modifier = modifier
-            .clip(RoundedCornerShape(11.dp))
-            .background(Color(0xFF4A426F))
-            .border(3.dp, Color.White.copy(alpha = 0.92f), RoundedCornerShape(11.dp)),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text("UNO", color = Color(0xFFFFD36D), fontSize = 13.sp, fontWeight = FontWeight.Black)
-    }
-}
-
 fun UnoCard.displayLabel(): String = when (type) {
     UnoCardType.NUMBER -> requireNotNull(number).toString()
     UnoCardType.SKIP -> "⊘"

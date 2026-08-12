@@ -63,6 +63,8 @@ import com.offlinelandlord.game.uno.core.UnoDirection
 import com.offlinelandlord.game.uno.core.UnoMatchMode
 import com.offlinelandlord.game.uno.core.UnoPhase
 import com.offlinelandlord.game.uno.ui.UnoBackground
+import com.offlinelandlord.game.uno.ui.UnoTableCardBack
+import com.offlinelandlord.game.uno.ui.UnoTableOpponentCard
 import com.offlinelandlord.game.uno.singleplayer.UnoGameViewModel
 import com.offlinelandlord.game.uno.singleplayer.UnoSinglePlayerConfig
 import com.offlinelandlord.game.uno.singleplayer.UnoUiPlayer
@@ -284,7 +286,7 @@ private fun UnoTable(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    UnoCardBack(
+                    UnoTableCardBack(
                         Modifier.width(58.dp).height(86.dp).clickable(enabled = state.canDraw) { viewModel.drawCard() },
                     )
                     Text("牌堆 ${state.drawPileCount}", color = Ink, fontSize = 10.sp, fontWeight = FontWeight.Bold)
@@ -371,30 +373,14 @@ private fun UnoTopBar(state: UnoUiState, onRequestExit: () -> Unit) {
 
 @Composable
 private fun UnoOpponentSeat(player: UnoUiPlayer) {
-    Row(
-        Modifier
-            .width(168.dp)
-            .height(72.dp)
-            .clip(RoundedCornerShape(20.dp))
-            .background(if (player.isCurrentPlayer) Sunny.copy(alpha = 0.48f) else Color(0xDFFFFFFF))
-            .border(if (player.isCurrentPlayer) 2.dp else 1.dp, if (player.isCurrentPlayer) PeachDeep else Color.White, RoundedCornerShape(20.dp))
-            .padding(8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        UnoCardBack(Modifier.width(38.dp).height(54.dp))
-        Spacer(Modifier.width(8.dp))
-        Column(Modifier.weight(1f)) {
-            Text(
-                "${if (player.isRoundWinner || player.isMatchWinner) "🏆 " else ""}${player.name}",
-                color = Ink,
-                fontWeight = FontWeight.Black,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Text("背面牌 × ${player.remainingCardCount}", color = LavenderDeep, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-            Text("累计 ${player.score}分", color = MutedInk, fontSize = 9.sp)
-        }
-    }
+    UnoTableOpponentCard(
+        name = "${if (player.isRoundWinner || player.isMatchWinner) "🏆 " else ""}${player.name}",
+        role = "机器人",
+        remainingCardCount = player.remainingCardCount,
+        isCurrentPlayer = player.isCurrentPlayer,
+        score = player.score,
+        modifier = Modifier.width(168.dp),
+    )
 }
 
 @Composable
