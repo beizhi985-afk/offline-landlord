@@ -167,6 +167,62 @@ class UnoHostSessionTest {
         assertTrue(session.viewFor(guest)!!.game!!.currentPlayerId != current || session.viewFor(guest)!!.game!!.phase != "TURN")
     }
 
+    @Test fun connectedHumanCurrentTurnWaitsForExplicitAction() = runBlocking {
+        val (session, guest, _) = started()
+        val initial = session.viewFor(guest)!!.game!!
+        val current = initial.currentPlayerId!!
+        assertTrue(initial.players.first { it.playerId == current }.connected)
+        assertFalse(initial.players.first { it.playerId == current }.isBot)
+
+        val unchanged = session.viewFor(current)!!.game!!
+        assertEquals(current, unchanged.currentPlayerId)
+        assertEquals("TURN", unchanged.phase)
+    }
+
+    @Test fun connectedHumanDrawWaitsForManualPlayOrPass() = runBlocking {
+        data class AfterDraw(val session: UnoHostSession, val playerId: String)
+        val afterDrawTurn = (1..500).firstNotNullOfOrNull { seed ->
+            val session = UnoHostSession(hostName = "Host", config = UnoV5RoomConfig(2), random = Random(seed))
+            val guest = session.join("Guest").value!!
+            session.ready(session.hostPlayerId); session.ready(guest.playerId); session.startGame(session.hostPlayerId)
+            val playerId = session.viewFor(guest.playerId)!!.game!!.currentPlayerId!!
+            val result = session.submitAction(playerId, "manual-draw-$seed", session.currentRevision(), UnoV5ActionPayload(UnoV5ActionType.DRAW_CARD))
+            val game = session.viewFor(playerId)!!.game!!
+            if (result.success && game.phase == "AFTER_DRAW") AfterDraw(session, playerId) else null
+        }
+        assertNotNull(afterDrawTurn)
+        val turn = requireNotNull(afterDrawTurn)
+        val afterDraw = turn.session.viewFor(turn.playerId)!!.game!!
+        assertEquals(turn.playerId, afterDraw.currentPlayerId)
+        assertEquals("AFTER_DRAW", afterDraw.phase)
+        assertNotNull(afterDraw.drawnCardId)
+    }
+
+    @Test fun connectedHumanWildWaitsForManualColorChoice() = runBlocking {
+        data class WildTurn(val session: UnoHostSession, val playerId: String, val cardId: String)
+        val wildTurn = (1..500).firstNotNullOfOrNull { seed ->
+            val session = UnoHostSession(hostName = "Host", config = UnoV5RoomConfig(2), random = Random(seed))
+            val guest = session.join("Guest").value!!
+            session.ready(session.hostPlayerId); session.ready(guest.playerId); session.startGame(session.hostPlayerId)
+            val playerId = session.viewFor(guest.playerId)!!.game!!.currentPlayerId!!
+            val card = session.viewFor(playerId)!!.game!!.ownHand.firstOrNull { it.type == "WILD" }
+            card?.let { WildTurn(session, playerId, it.cardId) }
+        }
+        assertNotNull(wildTurn)
+        val turn = requireNotNull(wildTurn)
+        assertTrue(turn.session.submitAction(turn.playerId, "manual-wild", turn.session.currentRevision(), UnoV5ActionPayload(UnoV5ActionType.PLAY_CARD, cardId = turn.cardId)).success)
+
+        val waitingForChoice = turn.session.viewFor(turn.playerId)!!.game!!
+        assertEquals(turn.playerId, waitingForChoice.currentPlayerId)
+        assertEquals("CHOOSE_COLOR", waitingForChoice.phase)
+    }
+
+    @Test fun connectedHumanIsNeverEligibleForAutomaticUnoOrCatchActions() {
+        assertFalse(shouldHostAutoControlUnoSeat(isBot = false, connected = true))
+        assertTrue(shouldHostAutoControlUnoSeat(isBot = true, connected = true))
+        assertTrue(shouldHostAutoControlUnoSeat(isBot = false, connected = false))
+    }
+
     @Test fun nonCurrentDisconnectDoesNotRemovePlayer() = runBlocking {
         val (session, guest, _) = started()
         val current = session.viewFor(guest)!!.game!!.currentPlayerId!!

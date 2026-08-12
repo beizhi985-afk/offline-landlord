@@ -200,7 +200,8 @@ class UnoHostSession(
         repeat(128) {
             val current = activeEngine.state.currentPlayerId ?: return
             val player = players.firstOrNull { it.playerId == current } ?: return
-            if (!player.isBot && player.connected) return
+            // An online human seat is never host-controlled. It must wait for an explicit V5 ACTION.
+            if (!shouldHostAutoControlUnoSeat(player.isBot, player.connected)) return
             val action = UnoBot(player.playerId, random).chooseAction(activeEngine) ?: return
             val result = activeEngine.applyAction(player.playerId, action)
             if (!result.success) return
@@ -290,3 +291,6 @@ class UnoHostSession(
         fun randomRoomCode(): String = Random.nextInt(100000, 1000000).toString()
     }
 }
+
+/** Connected human seats always wait for a deliberate network action. */
+internal fun shouldHostAutoControlUnoSeat(isBot: Boolean, connected: Boolean): Boolean = isBot || !connected
