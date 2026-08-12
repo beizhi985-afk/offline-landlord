@@ -91,8 +91,10 @@ class UnoLanControllerTest {
     @Test fun allActionsAreSafeBeforeConnection() { val c = UnoLanController(CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)); c.ready(); c.unready(); c.addBot(); c.removeBot("bot"); c.startGame(); c.playCard("r1"); c.drawCard(); c.playDrawnCard("r1"); c.passAfterDraw(); c.chooseColor("RED"); c.declareUno(); c.catchUno("bot"); c.startNextRound(); assertNotNull(c.uiState.value.errorMessage); c.close() }
 
     @Test fun loopbackHostAndRemoteReachPlayingState() = runBlocking {
-        val hostScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-        val guestScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        // Keep controller calls on a non-IO dispatcher, matching Compose click callbacks.
+        // Network writes must remain safe because the controller moves them to Dispatchers.IO.
+        val hostScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        val guestScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
         val host = UnoLanController(hostScope)
         val guest = UnoLanController(guestScope)
         try {

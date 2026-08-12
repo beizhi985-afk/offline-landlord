@@ -123,8 +123,10 @@ class UnoLanController(private val scope: CoroutineScope) : Closeable {
         val roomAction = action.action in setOf(UnoV5ActionType.READY, UnoV5ActionType.UNREADY, UnoV5ActionType.ADD_BOT, UnoV5ActionType.REMOVE_BOT, UnoV5ActionType.START_GAME)
         if (!roomAction && action.action !in state.game?.legalActions.orEmpty()) { showError("当前操作不可用"); return }
         _uiState.update { it.copy(isBusy = true, errorMessage = null) }
-        runCatching { activeClient.sendAction(action, state.room?.revision) }
-            .onFailure { showError("发送操作失败：${it.message.orEmpty()}") }
+        scope.launch(Dispatchers.IO) {
+            runCatching { activeClient.sendAction(action, state.room?.revision) }
+                .onFailure { showError("发送操作失败：${it.message.orEmpty()}") }
+        }
     }
 
     private fun startReader(activeClient: UnoV5Client) {
