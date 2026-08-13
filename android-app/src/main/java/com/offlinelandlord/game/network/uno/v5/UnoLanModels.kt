@@ -36,5 +36,9 @@ data class UnoLanUiState(
     val currentPlayerName: String?
         get() = game?.currentPlayerId?.let { id -> game?.players?.firstOrNull { it.playerId == id }?.displayName }
     val isPlaying: Boolean get() = room?.status == UnoV5RoomStatus.PLAYING
-    val isFinished: Boolean get() = room?.status == UnoV5RoomStatus.MATCH_FINISHED
+    /** Results are rendered only when the authoritative host explicitly finishes a round or match. */
+    val isFinished: Boolean get() = isAuthoritativeUnoResult(room?.status)
 }
+
+internal fun isAuthoritativeUnoResult(status: UnoV5RoomStatus?): Boolean =
+    status == UnoV5RoomStatus.ROUND_FINISHED || status == UnoV5RoomStatus.MATCH_FINISHED

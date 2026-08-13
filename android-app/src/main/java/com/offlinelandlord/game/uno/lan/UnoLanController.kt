@@ -167,7 +167,10 @@ class UnoLanController(private val scope: CoroutineScope) : Closeable {
         _uiState.update { it.copy(connectionState = ConnectionState.FAILED, isReconnecting = false, errorMessage = "无法恢复房间连接，请检查同一热点后重试") }
     }
 
-    private fun applyRoom(room: UnoV5RoomView) = _uiState.update { it.copy(room = room, selfPlayerId = it.selfPlayerId ?: client?.playerId, isBusy = false, connectionState = ConnectionState.CONNECTED, isReconnecting = false) }
+    private fun applyRoom(room: UnoV5RoomView) = _uiState.update { current ->
+        if (!shouldApplyUnoLanRevision(current.room?.revision, room.revision)) current
+        else current.copy(room = room, selfPlayerId = current.selfPlayerId ?: client?.playerId, isBusy = false, connectionState = ConnectionState.CONNECTED, isReconnecting = false)
+    }
 
     private fun validateJoin(host: String, port: Int, code: String): String? = when {
         host.isBlank() -> "请输入房主 IP"
@@ -206,3 +209,7 @@ class UnoLanController(private val scope: CoroutineScope) : Closeable {
 
     override fun close() = closeRoom(true)
 }
+
+/** Equal and older STATE messages are idempotent and must never re-trigger UI transitions. */
+internal fun shouldApplyUnoLanRevision(currentRevision: Long?, incomingRevision: Long): Boolean =
+    currentRevision == null || incomingRevision > currentRevision

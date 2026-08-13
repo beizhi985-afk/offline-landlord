@@ -24,6 +24,7 @@ import kotlinx.coroutines.withContext
 class TcpServerTransport(
     private val onMessage: suspend (connectionId: String, message: String) -> Unit,
     private val onDisconnect: suspend (connectionId: String) -> Unit,
+    private val initialReadTimeoutMillis: Int = DEFAULT_INITIAL_READ_TIMEOUT_MILLIS,
 ) : Closeable {
     private class Connection(
         val socket: Socket,
@@ -68,7 +69,7 @@ class TcpServerTransport(
                     val clientSocket = socket.accept().apply {
                         tcpNoDelay = true
                         keepAlive = true
-                        soTimeout = INITIAL_READ_TIMEOUT_MILLIS
+                        soTimeout = initialReadTimeoutMillis
                     }
                     val connectionId = UUID.randomUUID().toString()
                     launch { readConnection(connectionId, clientSocket) }
@@ -131,6 +132,6 @@ class TcpServerTransport(
     }
 
     private companion object {
-        const val INITIAL_READ_TIMEOUT_MILLIS = 10_000
+        const val DEFAULT_INITIAL_READ_TIMEOUT_MILLIS = 10_000
     }
 }

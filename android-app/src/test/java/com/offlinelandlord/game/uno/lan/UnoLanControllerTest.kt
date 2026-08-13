@@ -77,6 +77,20 @@ class UnoLanControllerTest {
     @Test fun currentPlayerNameUsesPublicPlayerView() { val state = UnoLanUiState(room = room().copy(game = game("guest", "host"))); assertEquals("Host", state.currentPlayerName) }
     @Test fun activeGameIsPlaying() { assertTrue(UnoLanUiState(room = room(UnoV5RoomStatus.PLAYING).copy(game = game())).isPlaying) }
     @Test fun finishedMatchIsFinished() { assertTrue(UnoLanUiState(room = room(UnoV5RoomStatus.MATCH_FINISHED).copy(game = game())).isFinished) }
+    @Test fun finishedRoundIsAuthoritativeResult() { assertTrue(UnoLanUiState(room = room(UnoV5RoomStatus.ROUND_FINISHED).copy(game = game())).isFinished) }
+    @Test fun lanClientDoesNotDeclareWinnerFromEmptyLocalHand() {
+        val emptyHandGame = game().copy(ownHand = emptyList())
+        val state = UnoLanUiState(room = room(UnoV5RoomStatus.PLAYING).copy(game = emptyHandGame))
+        assertFalse(state.isFinished)
+        assertNull(state.game!!.roundWinnerId)
+        assertNull(state.game!!.matchWinnerId)
+    }
+    @Test fun lanClientIgnoresOlderOrDuplicateRevision() {
+        assertTrue(shouldApplyUnoLanRevision(currentRevision = null, incomingRevision = 5))
+        assertTrue(shouldApplyUnoLanRevision(currentRevision = 4, incomingRevision = 5))
+        assertFalse(shouldApplyUnoLanRevision(currentRevision = 5, incomingRevision = 5))
+        assertFalse(shouldApplyUnoLanRevision(currentRevision = 6, incomingRevision = 5))
+    }
     @Test fun ownHandIsVisibleOnlyForSelf() { val state = UnoLanUiState(room = room().copy(game = game())); assertEquals(listOf("r1"), state.selfHand.map { it.cardId }) }
     @Test fun legalActionsAreForwarded() { val state = UnoLanUiState(room = room().copy(game = game())); assertTrue(UnoV5ActionType.DRAW_CARD in state.game!!.legalActions) }
     @Test fun legalCardsAreForwarded() { val state = UnoLanUiState(room = room().copy(game = game())); assertEquals(listOf("r1"), state.game!!.legalPlayableCardIds) }

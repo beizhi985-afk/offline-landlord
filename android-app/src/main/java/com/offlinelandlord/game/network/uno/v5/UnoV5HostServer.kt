@@ -13,12 +13,13 @@ import kotlinx.serialization.json.Json
 /** Thin TCP adapter. It owns sockets only; [UnoHostSession] remains the authority. */
 class UnoV5HostServer(
     val session: UnoHostSession,
+    handshakeReadTimeoutMillis: Int = 10_000,
 ) : Closeable {
     private val json = Json { encodeDefaults = true; ignoreUnknownKeys = true }
     private val connectionPlayers = ConcurrentHashMap<String, String>()
     private val playerConnections = ConcurrentHashMap<String, String>()
     private val replacedConnections = ConcurrentHashMap.newKeySet<String>()
-    private val transport = TcpServerTransport(::onMessage, ::onDisconnect)
+    private val transport = TcpServerTransport(::onMessage, ::onDisconnect, handshakeReadTimeoutMillis)
 
     val port: Int get() = transport.port
 
@@ -66,6 +67,9 @@ class UnoV5HostServer(
             }
         }
         connectionPlayers[connectionId] = accepted.playerId
+        // The 10-second transport timeout protects only the unauthenticated JOIN handshake.
+        // An authenticated UNO human may stay idle for any length of time without being disconnected.
+        transport.setReadTimeoutMillis(connectionId, 0)
         send(connectionId, UnoV5PayloadCodec.envelope(V5WireType.JOIN_ACCEPTED, UnoV5PayloadCodec.encodeJoinAccepted(accepted), envelope.requestId, accepted.playerId, session.roomCode, accepted.resumeToken))
         broadcastStates()
     }
