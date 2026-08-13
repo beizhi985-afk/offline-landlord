@@ -29,9 +29,7 @@ import com.offlinelandlord.game.ui.FreshOutlineButton
 import com.offlinelandlord.game.ui.SoftPanel
 import com.offlinelandlord.game.ui.theme.*
 import com.offlinelandlord.game.uno.lan.UnoLanViewModel
-import com.offlinelandlord.game.uno.ui.UnoBackground
-import com.offlinelandlord.game.uno.ui.UnoTableOpponentCard
-import com.offlinelandlord.game.uno.ui.UnoTablePileLabel
+import com.offlinelandlord.game.uno.ui.*
 
 @Composable
 fun UnoLanHomeScreen(viewModel: UnoLanViewModel, onBack: () -> Unit, onLobby: () -> Unit) {
@@ -88,18 +86,24 @@ fun UnoLanLobbyScreen(viewModel: UnoLanViewModel, onBack: () -> Unit, onGame: ()
 fun UnoLanGameScreen(viewModel: UnoLanViewModel, onBack: () -> Unit) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var confirmExit by rememberSaveable { mutableStateOf(false) }
-    var showColors by rememberSaveable { mutableStateOf(false) }
     BackHandler { confirmExit = true }
-    LaunchedEffect(state.game?.phase) { if (state.game?.phase == "CHOOSE_COLOR") showColors = true }
-    UnoLanBackground { BoxWithConstraints(Modifier.fillMaxSize().padding(12.dp)) {
-        Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) { Column(Modifier.weight(1f)) { Text("UNO · 房间 ${state.room?.roomCode.orEmpty()}", color = Ink, fontSize = 22.sp, fontWeight = FontWeight.Black); Text(turnHint(state), color = if (state.game?.currentPlayerId == state.selfId) PeachDeep else MutedInk, fontWeight = FontWeight.Bold, fontSize = 12.sp) }; ConnectionPill(state.connectionState); FreshOutlineButton("退出", { confirmExit = true }, Modifier.width(76.dp).height(34.dp)) }
-            Row(Modifier.fillMaxWidth().weight(1f), horizontalArrangement = Arrangement.spacedBy(8.dp)) { val opponents = state.opponentViews; OpponentCard(opponents.getOrNull(0), Modifier.width(150.dp).align(Alignment.CenterVertically), state.game?.currentPlayerId); Column(Modifier.weight(1f).fillMaxHeight(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) { if (opponents.size > 2) Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { opponents.drop(2).forEach { OpponentMini(it, state.game?.currentPlayerId) } }; Row(horizontalArrangement = Arrangement.spacedBy(18.dp), verticalAlignment = Alignment.CenterVertically) { Column(horizontalAlignment = Alignment.CenterHorizontally) { PileCard("牌堆", LavenderDeep); UnoTablePileLabel("摸牌堆", state.game?.drawPileCount) }; Column(horizontalAlignment = Alignment.CenterHorizontally) { PileCard(cardLabel(state.game?.topDiscard), cardColor(state.game?.topDiscard?.color), true); UnoTablePileLabel("弃牌顶牌") } }; Text("当前颜色：${colorName(state.game?.activeColor)} · ${directionName(state.game?.direction)}", color = MutedInk, fontSize = 11.sp); Text(turnHint(state), color = if (state.game?.currentPlayerId == state.selfId) PeachDeep else MintDeep, fontWeight = FontWeight.Black) }; OpponentCard(opponents.getOrNull(1), Modifier.width(150.dp).align(Alignment.CenterVertically), state.game?.currentPlayerId) }
-            SoftPanel(Modifier.fillMaxWidth().heightIn(min = 126.dp, max = 190.dp), tint = Color(0xEFFFFFFF)) { Column(Modifier.fillMaxSize().padding(8.dp)) { Text("你的手牌 · ${state.selfHand.size} 张", color = Ink, fontWeight = FontWeight.Black, fontSize = 11.sp); LazyRow(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(5.dp), verticalAlignment = Alignment.CenterVertically) { items(state.selfHand, key = { it.cardId }) { card -> LanCard(card, card.cardId in state.game?.legalPlayableCardIds.orEmpty()) { viewModel.playCard(card.cardId) } } }; Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) { if (UnoV5ActionType.DRAW_CARD in state.game?.legalActions.orEmpty()) FreshOutlineButton("摸一张", viewModel::drawCard, Modifier.weight(1f).height(34.dp)); if (UnoV5ActionType.PLAY_DRAWN_CARD in state.game?.legalActions.orEmpty()) FreshButton("打出刚摸的牌", { state.game?.drawnCardId?.let(viewModel::playDrawnCard) }, Modifier.weight(1.2f).height(34.dp)); if (UnoV5ActionType.PASS_AFTER_DRAW in state.game?.legalActions.orEmpty()) FreshOutlineButton("不出", viewModel::passAfterDraw, Modifier.weight(1f).height(34.dp)); if (UnoV5ActionType.DECLARE_UNO in state.game?.legalActions.orEmpty()) FreshButton("喊 UNO！", viewModel::declareUno, Modifier.weight(1f).height(34.dp)); if (UnoV5ActionType.CATCH_UNO in state.game?.legalActions.orEmpty()) FreshButton("抓 UNO！", { viewModel.catchUno(state.game?.catchTargetPlayerId) }, Modifier.weight(1f).height(34.dp), color = RoseRed) } } }
-        }
-        if (state.isFinished) MatchResultCard(state, viewModel, { viewModel.leaveRoom(); onBack() }, Modifier.align(Alignment.Center))
-    } }
-    if (showColors) ColorDialog({ showColors = false }, viewModel::chooseColor)
+    UnoLanBackground {
+        UnoGameTableContent(
+            state = state.toTablePresentation(),
+            callbacks = UnoTableCallbacks(
+                onExit = { confirmExit = true },
+                onPlayCard = viewModel::playCard,
+                onDrawCard = viewModel::drawCard,
+                onPlayDrawnCard = viewModel::playDrawnCard,
+                onPassAfterDraw = viewModel::passAfterDraw,
+                onDeclareUno = viewModel::declareUno,
+                onCatchUno = { viewModel.catchUno(state.game?.catchTargetPlayerId) },
+                onChooseColor = { color -> viewModel.chooseColor(color.toProtocolColor()) },
+                onNext = viewModel::startNextRound,
+                onReturnHome = { viewModel.leaveRoom(); onBack() },
+            ),
+        )
+    }
     state.errorMessage?.let { ErrorDialog(it, viewModel::dismissError) }
     if (confirmExit) ConfirmDialog("退出当前牌局？", "本机将退出房间，牌局仍由房主继续。", "继续游戏", "退出", { confirmExit = false }, { confirmExit = false; viewModel.leaveRoom(); onBack() })
 }
@@ -110,26 +114,92 @@ fun UnoLanGameScreen(viewModel: UnoLanViewModel, onBack: () -> Unit) {
 @Composable private fun ConnectionPill(connection: ConnectionState) { val pair = when (connection) { ConnectionState.CONNECTED -> "已连接" to MintDeep; ConnectionState.CONNECTING -> "连接中" to PeachDeep; ConnectionState.RECONNECTING -> "重连中" to PeachDeep; ConnectionState.FAILED -> "连接失败" to RoseRed; ConnectionState.DISCONNECTED -> "未连接" to MutedInk }; Text("● ${pair.first}", color = pair.second, fontWeight = FontWeight.Black, fontSize = 11.sp, modifier = Modifier.clip(RoundedCornerShape(18.dp)).background(Color.White.copy(.78f)).padding(horizontal = 10.dp, vertical = 7.dp)) }
 @Composable private fun RoomRow(room: UnoLanRoom, onJoin: () -> Unit) { Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(15.dp)).background(Mint.copy(.38f)).padding(9.dp), verticalAlignment = Alignment.CenterVertically) { Column(Modifier.weight(1f)) { Text(room.roomName, fontWeight = FontWeight.Black, maxLines = 1, overflow = TextOverflow.Ellipsis); Text("${room.host}:${room.port} · ${room.playerCount}/${room.maxPlayers}人 · ${gameModeName(room.gameMode)}", color = MutedInk, fontSize = 10.sp) }; FreshOutlineButton("加入", onJoin, Modifier.width(70.dp).height(34.dp)) } }
 @Composable private fun LobbySeat(player: UnoV5PlayerView, isHost: Boolean, isSelf: Boolean, onRemove: () -> Unit) { Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(15.dp)).background(if (isSelf) Lavender.copy(.26f) else Color.White.copy(.68f)).padding(10.dp), verticalAlignment = Alignment.CenterVertically) { Box(Modifier.size(34.dp).clip(RoundedCornerShape(12.dp)).background(if (player.isBot) Mint.copy(.7f) else Peach.copy(.7f)), contentAlignment = Alignment.Center) { Text(if (player.isBot) "机" else "玩", fontSize = 10.sp, fontWeight = FontWeight.Black) }; Spacer(Modifier.width(10.dp)); Column(Modifier.weight(1f)) { Text("${player.seatIndex + 1}号座位 · ${player.displayName}", fontWeight = FontWeight.Black); Text(listOfNotNull(if (isHost) "房主" else null, if (player.isBot) "机器人" else "玩家", if (player.ready) "已准备" else "等待准备").joinToString(" · "), color = if (player.ready) MintDeep else MutedInk, fontSize = 11.sp) }; if (isHost && player.isBot) TextButton(onClick = onRemove) { Text("移除", color = RoseRed) } } }
-@Composable private fun OpponentCard(player: UnoV5PlayerView?, modifier: Modifier, currentPlayerId: String?) { if (player == null) Spacer(modifier) else UnoTableOpponentCard(player.displayName, if (player.isBot) "机器人" else "玩家", player.handCount, player.playerId == currentPlayerId, player.score, modifier) }
-@Composable private fun OpponentMini(player: UnoV5PlayerView, currentPlayerId: String?) { UnoTableOpponentCard(player.displayName, if (player.isBot) "机器人" else "玩家", player.handCount, player.playerId == currentPlayerId, modifier = Modifier.width(132.dp)) }
-@Composable private fun PileCard(text: String, color: Color, highlighted: Boolean = false) { Box(Modifier.width(72.dp).height(88.dp).clip(RoundedCornerShape(13.dp)).background(Color.White.copy(.94f)).border(if (highlighted) 2.dp else 1.dp, color.copy(.7f), RoundedCornerShape(13.dp)), contentAlignment = Alignment.Center) { Text(text, textAlign = TextAlign.Center, color = color, fontWeight = FontWeight.Black, fontSize = 13.sp) } }
-@Composable private fun LanCard(card: UnoV5Card, enabled: Boolean, onClick: () -> Unit) { Box(Modifier.width(62.dp).height(92.dp).clip(RoundedCornerShape(13.dp)).background(cardColor(card.color).copy(alpha = if (enabled) .94f else .45f)).border(3.dp, Color.White.copy(alpha = .90f), RoundedCornerShape(13.dp)).clickable(enabled = enabled, onClick = onClick).padding(5.dp), contentAlignment = Alignment.Center) { Column(horizontalAlignment = Alignment.CenterHorizontally) { Text(cardLabel(card), color = Color.White, fontWeight = FontWeight.Black, fontSize = 20.sp); if (card.type != "NUMBER") Text(cardTypeName(card.type), color = Color.White, fontSize = 8.sp, textAlign = TextAlign.Center) } } }
-@Composable private fun MatchResultCard(state: UnoLanUiState, viewModel: UnoLanViewModel, onLeave: () -> Unit, modifier: Modifier) { val winner = state.room?.players?.firstOrNull { it.playerId == (state.game?.matchWinnerId ?: state.game?.roundWinnerId) }?.displayName ?: "未知玩家"; SoftPanel(modifier.width(410.dp).height(270.dp), tint = Color(0xF8FFFFFF)) { Column(Modifier.fillMaxSize().padding(18.dp), horizontalAlignment = Alignment.CenterHorizontally) { Text(if (state.game?.matchWinnerId == null) "本局结束" else "整场结束", color = PeachDeep, fontSize = 24.sp, fontWeight = FontWeight.Black); Text("$winner 获胜", color = Ink, fontWeight = FontWeight.Bold); Spacer(Modifier.height(10.dp)); state.room?.players?.sortedByDescending { it.score }?.forEach { Text("${it.displayName} · ${it.score} 分", color = if (it.playerId == state.game?.matchWinnerId) PeachDeep else Ink, fontWeight = FontWeight.Bold) }; Spacer(Modifier.weight(1f)); Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { if (state.game?.roundWinnerId != null && state.game?.matchWinnerId == null) FreshButton("下一局", viewModel::startNextRound, Modifier.width(130.dp).height(38.dp)); FreshOutlineButton("退出", onLeave, Modifier.width(110.dp).height(38.dp)) } } } }
-@Composable private fun ColorDialog(onDismiss: () -> Unit, onColor: (String) -> Unit) { AlertDialog(onDismissRequest = onDismiss, title = { Text("请选择颜色", fontWeight = FontWeight.Black) }, text = { Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) { listOf("RED" to "红" to Color(0xFFE66D72), "YELLOW" to "黄" to Color(0xFFF3C64E), "GREEN" to "绿" to Color(0xFF5BAF86), "BLUE" to "蓝" to Color(0xFF5F8DD3)).forEach { (pair, color) -> val (code, label) = pair; Box(Modifier.size(54.dp).clip(RoundedCornerShape(16.dp)).background(color).clickable { onDismiss(); onColor(code) }, contentAlignment = Alignment.Center) { Text(label, color = Color.White, fontWeight = FontWeight.Black) } } } }, confirmButton = {}) }
 @Composable private fun ErrorDialog(message: String, onDismiss: () -> Unit) { AlertDialog(onDismissRequest = onDismiss, title = { Text("小提示", fontWeight = FontWeight.Black) }, text = { Text(message) }, confirmButton = { TextButton(onClick = onDismiss) { Text("知道啦") } }) }
 @Composable private fun ConfirmDialog(title: String, text: String, dismissLabel: String, confirmLabel: String, onDismiss: () -> Unit, onConfirm: () -> Unit) { AlertDialog(onDismissRequest = onDismiss, title = { Text(title, fontWeight = FontWeight.Black) }, text = { Text(text) }, dismissButton = { TextButton(onClick = onDismiss) { Text(dismissLabel) } }, confirmButton = { TextButton(onClick = onConfirm) { Text(confirmLabel, color = PeachDeep) } }) }
-private fun cardLabel(card: UnoV5Card?): String = card?.let { if (it.type == "NUMBER") it.number?.toString().orEmpty() else when (it.type) { "DRAW_TWO" -> "+2"; "WILD_DRAW_FOUR" -> "+4"; "REVERSE" -> "↔"; "SKIP" -> "⊘"; "WILD" -> "万能"; else -> it.type } } ?: "-"
-private fun cardTypeName(type: String): String = when (type) { "DRAW_TWO" -> "加二"; "WILD_DRAW_FOUR" -> "加四"; "REVERSE" -> "反转"; "SKIP" -> "跳过"; "WILD" -> "万能"; else -> "" }
 private fun gameModeName(mode: UnoV5GameMode?): String = if (mode == UnoV5GameMode.POINTS_500) "积分赛 500 分" else "快速游戏"
-private fun colorName(color: String?): String = when (color) { "RED" -> "红"; "YELLOW" -> "黄"; "GREEN" -> "绿"; "BLUE" -> "蓝"; else -> "待选择" }
-private fun directionName(direction: String?): String = if (direction == "COUNTERCLOCKWISE") "逆时针" else "顺时针"
-private fun turnHint(state: UnoLanUiState): String {
-    val game = state.game ?: return "等待牌局开始"
-    return when {
-        game.currentPlayerId == state.selfId && game.phase == "AFTER_DRAW" -> "请手动选择：打出刚摸的牌或不出"
-        game.currentPlayerId == state.selfId -> "轮到你"
-        game.currentPlayerId == null -> "等待状态同步"
-        else -> "等待 ${state.currentPlayerName ?: "对手"} 操作"
-    }
+
+private fun UnoLanUiState.toTablePresentation(): UnoTablePresentationState {
+    val game = game
+    val self = game?.players?.firstOrNull { it.playerId == selfId }
+    val matchFinished = room?.status == UnoV5RoomStatus.MATCH_FINISHED
+    val roundFinished = room?.status == UnoV5RoomStatus.ROUND_FINISHED
+    val winnerId = if (matchFinished) game?.matchWinnerId else game?.roundWinnerId
+    val winnerName = game?.players?.firstOrNull { it.playerId == winnerId }?.displayName ?: "未知玩家"
+    val current = game?.players?.firstOrNull { it.playerId == game.currentPlayerId }
+    return UnoTablePresentationState(
+        phase = when {
+            matchFinished -> UnoTablePhase.MATCH_FINISHED
+            roundFinished -> UnoTablePhase.ROUND_FINISHED
+            game?.phase == "AFTER_DRAW" -> UnoTablePhase.AFTER_DRAW
+            game?.phase == "CHOOSE_COLOR" -> UnoTablePhase.CHOOSE_COLOR
+            game?.phase == "TURN" -> UnoTablePhase.TURN
+            else -> UnoTablePhase.WAITING
+        },
+        turnText = when {
+            matchFinished -> "整场结束"
+            roundFinished -> "本局结束"
+            game?.currentPlayerId == selfId && game?.phase == "AFTER_DRAW" -> "请手动选择：打出刚摸的牌或不出"
+            game?.currentPlayerId == selfId -> "轮到你"
+            current?.isBot == true -> "${current.displayName}思考中…"
+            current != null -> "等待 ${current.displayName} 操作"
+            else -> "等待状态同步"
+        },
+        roundAndModeText = "第${game?.roundNumber ?: 1}局 · ${gameModeName(room?.gameMode)}",
+        activeColor = game?.activeColor.toTableColor(),
+        activeColorName = game?.activeColor.toColorName(),
+        clockwise = game?.direction != "COUNTERCLOCKWISE",
+        opponents = opponentViews.map { player ->
+            UnoTablePlayer(player.playerId, player.displayName, if (player.isBot) "机器人" else "玩家", player.handCount, player.score, player.playerId == game?.currentPlayerId, player.playerId == game?.roundWinnerId, player.playerId == game?.matchWinnerId)
+        },
+        hand = selfHand.map(UnoV5Card::toTableCard),
+        legalCardIds = game?.legalPlayableCardIds.orEmpty().toSet(),
+        drawPileCount = game?.drawPileCount ?: 0,
+        topDiscard = game?.topDiscard?.toTableCard(),
+        canDraw = UnoV5ActionType.DRAW_CARD in game?.legalActions.orEmpty(),
+        canPlayDrawnCard = UnoV5ActionType.PLAY_DRAWN_CARD in game?.legalActions.orEmpty(),
+        drawnCardId = game?.drawnCardId,
+        canPassAfterDraw = UnoV5ActionType.PASS_AFTER_DRAW in game?.legalActions.orEmpty(),
+        canDeclareUno = UnoV5ActionType.DECLARE_UNO in game?.legalActions.orEmpty(),
+        canCatchUno = UnoV5ActionType.CATCH_UNO in game?.legalActions.orEmpty(),
+        isActionInProgress = isBusy,
+        isBotThinking = current?.isBot == true,
+        mustChooseColor = game?.phase == "CHOOSE_COLOR" && game?.colorChooserPlayerId == selfId,
+        localPlayerWon = self?.playerId == winnerId,
+        connectionBadge = connectionState.toChineseLabel(),
+        roomBadge = room?.roomCode?.let { "房间 $it" },
+        eventMessage = eventMessage,
+        result = if (roundFinished || matchFinished) UnoTableResult(
+            matchFinished = matchFinished,
+            title = if (matchFinished) "UNO 整场结束" else "UNO 本局结束",
+            winnerLine = "$winnerName 获胜",
+            ranking = room?.players.orEmpty().sortedByDescending { it.score }.map { UnoTableRanking(it.displayName, it.score) },
+            nextLabel = if (roundFinished) "下一局" else null,
+        ) else null,
+    )
 }
-private fun cardColor(color: String?): Color = when (color) { "RED" -> Color(0xFFD65B64); "YELLOW" -> Color(0xFFCC9A20); "GREEN" -> Color(0xFF3E9568); "BLUE" -> Color(0xFF4F74B6); else -> Ink }
+
+private fun UnoV5Card.toTableCard(): UnoTableCard = UnoTableCard(
+    cardId = cardId,
+    color = color.toTableColor(),
+    label = if (type == "NUMBER") number?.toString().orEmpty() else when (type) {
+        "DRAW_TWO" -> "+2"
+        "WILD_DRAW_FOUR" -> "+4"
+        "REVERSE" -> "↺"
+        "SKIP" -> "⊘"
+        "WILD" -> "WILD"
+        else -> type
+    },
+    isWild = type == "WILD" || type == "WILD_DRAW_FOUR",
+)
+
+private fun String?.toTableColor(): UnoTableColor = when (this) {
+    "RED" -> UnoTableColor.RED
+    "YELLOW" -> UnoTableColor.YELLOW
+    "GREEN" -> UnoTableColor.GREEN
+    "BLUE" -> UnoTableColor.BLUE
+    else -> UnoTableColor.WILD
+}
+
+private fun String?.toColorName(): String = when (this) { "RED" -> "红"; "YELLOW" -> "黄"; "GREEN" -> "绿"; "BLUE" -> "蓝"; else -> "待选择" }
+private fun UnoTableColor.toProtocolColor(): String = name
+private fun ConnectionState.toChineseLabel(): String = when (this) { ConnectionState.CONNECTED -> "已连接"; ConnectionState.CONNECTING -> "连接中"; ConnectionState.RECONNECTING -> "重连中"; ConnectionState.FAILED -> "连接失败"; ConnectionState.DISCONNECTED -> "未连接" }

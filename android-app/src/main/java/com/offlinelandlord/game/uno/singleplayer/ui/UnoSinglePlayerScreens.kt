@@ -59,12 +59,11 @@ import com.offlinelandlord.game.ui.theme.Peach
 import com.offlinelandlord.game.ui.theme.PeachDeep
 import com.offlinelandlord.game.ui.theme.Sunny
 import com.offlinelandlord.game.uno.core.UnoColor
+import com.offlinelandlord.game.uno.core.UnoCard
 import com.offlinelandlord.game.uno.core.UnoDirection
 import com.offlinelandlord.game.uno.core.UnoMatchMode
 import com.offlinelandlord.game.uno.core.UnoPhase
-import com.offlinelandlord.game.uno.ui.UnoBackground
-import com.offlinelandlord.game.uno.ui.UnoTableCardBack
-import com.offlinelandlord.game.uno.ui.UnoTableOpponentCard
+import com.offlinelandlord.game.uno.ui.*
 import com.offlinelandlord.game.uno.singleplayer.UnoGameViewModel
 import com.offlinelandlord.game.uno.singleplayer.UnoSinglePlayerConfig
 import com.offlinelandlord.game.uno.singleplayer.UnoUiPlayer
@@ -95,7 +94,7 @@ fun UnoHomeScreen(
                 ) {
                     Text("UNO", color = PeachDeep, fontSize = 42.sp, fontWeight = FontWeight.Black)
                     Text("轻松单机牌局", color = Ink, fontSize = 22.sp, fontWeight = FontWeight.Black)
-                    Text("1名真人 · 1～3名NORMAL机器人", color = MutedInk, fontSize = 13.sp)
+                    Text("1名真人 · 1～3名普通机器人", color = MutedInk, fontSize = 13.sp)
                     Spacer(Modifier.height(if (compact) 8.dp else 10.dp))
                     FreshButton("单机游戏", onSinglePlayer, Modifier.width(210.dp).height(48.dp))
                     Spacer(Modifier.height(if (compact) 4.dp else 6.dp))
@@ -131,7 +130,7 @@ fun UnoSinglePlayerSetupScreen(
         ) {
             Column(Modifier.fillMaxSize().padding(28.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 Text("UNO 单机配置", color = Ink, fontSize = 28.sp, fontWeight = FontWeight.Black)
-                Text("固定1名真人，其余座位由NORMAL机器人加入", color = MutedInk, fontSize = 12.sp)
+                Text("固定1名真人，其余座位由普通机器人加入", color = MutedInk, fontSize = 12.sp)
                 Spacer(Modifier.height(20.dp))
                 Text("总玩家人数", color = LavenderDeep, fontWeight = FontWeight.Black)
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -201,40 +200,20 @@ fun UnoGameScreen(
                 Text("正在准备UNO牌局…", Modifier.align(Alignment.Center), color = Ink, fontWeight = FontWeight.Black)
             }
         } else {
-            UnoTable(
-                state = state,
-                viewModel = viewModel,
-                onRequestExit = { showExitConfirmation = true },
-                onReturnToUnoHome = onReturnToUnoHome,
-            )
-        }
-
-        state.eventMessage?.let { message ->
-            Box(
-                Modifier.align(Alignment.TopCenter).padding(top = 54.dp).clip(RoundedCornerShape(18.dp))
-                    .background(Color(0xEFFFFFFF)).border(1.5.dp, Peach, RoundedCornerShape(18.dp))
-                    .padding(horizontal = 18.dp, vertical = 8.dp),
-            ) { Text(message, color = PeachDeep, fontWeight = FontWeight.Black) }
-        }
-
-        if (state.mustChooseColor) {
-            AlertDialog(
-                onDismissRequest = {},
-                title = { Text("请选择颜色", fontWeight = FontWeight.Black) },
-                text = {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                        UnoColor.entries.forEach { color ->
-                            Box(
-                                Modifier.size(56.dp).clip(RoundedCornerShape(18.dp)).background(color.toCardColor())
-                                    .clickable(enabled = !state.isActionInProgress) { viewModel.chooseColor(color) },
-                                contentAlignment = Alignment.Center,
-                            ) { Text(color.displayName(), color = Color.White, fontWeight = FontWeight.Black) }
-                        }
-                    }
-                },
-                confirmButton = {},
-                shape = RoundedCornerShape(26.dp),
-                containerColor = Color(0xFFFFFBF8),
+            UnoGameTableContent(
+                state = state.toTablePresentation(),
+                callbacks = UnoTableCallbacks(
+                    onExit = { showExitConfirmation = true },
+                    onPlayCard = viewModel::playCard,
+                    onDrawCard = viewModel::drawCard,
+                    onPlayDrawnCard = viewModel::playCard,
+                    onPassAfterDraw = viewModel::passAfterDraw,
+                    onDeclareUno = viewModel::declareUno,
+                    onCatchUno = viewModel::catchUno,
+                    onChooseColor = { color -> viewModel.chooseColor(color.toCoreColor()) },
+                    onNext = { if (state.phase == UnoPhase.MATCH_FINISHED) viewModel.restartMatch() else viewModel.startNextRound() },
+                    onReturnHome = onReturnToUnoHome,
+                ),
             )
         }
 
@@ -263,195 +242,72 @@ fun UnoGameScreen(
     }
 }
 
-@Composable
-private fun UnoTable(
-    state: UnoUiState,
-    viewModel: UnoGameViewModel,
-    onRequestExit: () -> Unit,
-    onReturnToUnoHome: () -> Unit,
-) {
-    Box(Modifier.fillMaxSize()) {
-        Column(Modifier.fillMaxSize().padding(horizontal = 14.dp, vertical = 8.dp)) {
-            UnoTopBar(state, onRequestExit)
-            Row(
-                Modifier.fillMaxWidth().height(82.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                state.opponents.forEach { UnoOpponentSeat(it) }
-            }
-            Row(
-                Modifier.fillMaxWidth().height(105.dp),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    UnoTableCardBack(
-                        Modifier.width(58.dp).height(86.dp).clickable(enabled = state.canDraw) { viewModel.drawCard() },
-                    )
-                    Text("牌堆 ${state.drawPileCount}", color = Ink, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                }
-                Spacer(Modifier.width(22.dp))
-                state.topDiscardCard?.let {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        UnoCardView(it, enabled = false, onClick = {}, modifier = Modifier.width(62.dp).height(92.dp))
-                        Text("弃牌顶牌", color = Ink, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                    }
-                }
-            }
-            UnoActionBar(state, viewModel)
-            Row(
-                Modifier.fillMaxWidth().height(28.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                val human = state.players.firstOrNull { it.isHuman }
-                Text("你${if (human?.isRoundWinner == true || human?.isMatchWinner == true) " 🏆" else ""} · ${state.humanHand.size}张", color = Ink, fontWeight = FontWeight.Black)
-                Spacer(Modifier.weight(1f))
-                Text("点击亮起的合法牌出牌", color = MutedInk, fontSize = 10.sp)
-            }
-            LazyRow(
-                modifier = Modifier.fillMaxWidth().weight(1f),
-                horizontalArrangement = Arrangement.spacedBy(5.dp, Alignment.CenterHorizontally),
-                verticalAlignment = Alignment.Bottom,
-            ) {
-                items(state.humanHand, key = { it.cardId }) { card ->
-                    val enabled = card.cardId in state.legalCardIds && !state.isActionInProgress
-                    UnoCardView(
-                        card = card,
-                        enabled = enabled,
-                        onClick = { viewModel.playCard(card.cardId) },
-                        modifier = Modifier.width(62.dp).height(96.dp),
-                    )
-                }
-            }
-        }
-
-        if (state.phase == UnoPhase.ROUND_FINISHED || state.phase == UnoPhase.MATCH_FINISHED) {
-            UnoResultPanel(state, viewModel, onReturnToUnoHome, Modifier.align(Alignment.Center))
-        }
-    }
-}
-
-@Composable
-private fun UnoTopBar(state: UnoUiState, onRequestExit: () -> Unit) {
-    Row(Modifier.fillMaxWidth().height(43.dp), verticalAlignment = Alignment.CenterVertically) {
-        FreshOutlineButton("退出", onRequestExit, Modifier.width(78.dp).height(38.dp), color = LavenderDeep)
-        Spacer(Modifier.width(12.dp))
-        Column {
-            Text(
-                when {
-                    state.phase == UnoPhase.MATCH_FINISHED -> "整场结束"
-                    state.phase == UnoPhase.ROUND_FINISHED -> "本局结束"
-                    state.isBotThinking -> "${state.currentPlayerName ?: "机器人"}思考中…"
-                    state.isHumanTurn -> "轮到你"
-                    else -> "${state.currentPlayerName ?: "对手"}行动"
-                },
-                color = Ink,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Black,
-            )
-            Text(
-                "第${state.roundNumber}局 · ${if (state.config.matchMode == UnoMatchMode.QUICK) "快速游戏" else "500分积分赛"}",
-                color = MutedInk,
-                fontSize = 10.sp,
-            )
-        }
-        Spacer(Modifier.weight(1f))
-        Box(
-            Modifier.clip(RoundedCornerShape(16.dp)).background(state.activeColor.toCardColor().copy(alpha = 0.88f))
-                .padding(horizontal = 12.dp, vertical = 6.dp),
-        ) { Text("当前颜色：${state.activeColor.displayName()}", color = Color.White, fontWeight = FontWeight.Black) }
-        Spacer(Modifier.width(8.dp))
-        Text(
-            if (state.direction == UnoDirection.CLOCKWISE) "↻ 顺时针" else "↺ 逆时针",
-            Modifier.clip(RoundedCornerShape(16.dp)).background(Color(0xDFFFFFFF)).padding(horizontal = 12.dp, vertical = 6.dp),
-            color = LavenderDeep,
-            fontWeight = FontWeight.Black,
-        )
-    }
-}
-
-@Composable
-private fun UnoOpponentSeat(player: UnoUiPlayer) {
-    UnoTableOpponentCard(
-        name = "${if (player.isRoundWinner || player.isMatchWinner) "🏆 " else ""}${player.name}",
-        role = "机器人",
-        remainingCardCount = player.remainingCardCount,
-        isCurrentPlayer = player.isCurrentPlayer,
-        score = player.score,
-        modifier = Modifier.width(168.dp),
+private fun UnoUiState.toTablePresentation(): UnoTablePresentationState {
+    val human = players.firstOrNull(UnoUiPlayer::isHuman)
+    val matchFinished = phase == UnoPhase.MATCH_FINISHED
+    val roundFinished = phase == UnoPhase.ROUND_FINISHED
+    val winnerId = if (matchFinished) matchWinnerId else roundWinnerId
+    val winnerName = players.firstOrNull { it.playerId == winnerId }?.name ?: "未知玩家"
+    return UnoTablePresentationState(
+        phase = when (phase) {
+            UnoPhase.AFTER_DRAW -> UnoTablePhase.AFTER_DRAW
+            UnoPhase.CHOOSE_COLOR -> UnoTablePhase.CHOOSE_COLOR
+            UnoPhase.ROUND_FINISHED -> UnoTablePhase.ROUND_FINISHED
+            UnoPhase.MATCH_FINISHED -> UnoTablePhase.MATCH_FINISHED
+            UnoPhase.TURN -> UnoTablePhase.TURN
+            else -> UnoTablePhase.WAITING
+        },
+        turnText = when {
+            matchFinished -> "整场结束"
+            roundFinished -> "本局结束"
+            isBotThinking -> "${currentPlayerName ?: "机器人"}思考中…"
+            isHumanTurn -> "轮到你"
+            else -> "${currentPlayerName ?: "对手"}行动"
+        },
+        roundAndModeText = "第${roundNumber}局 · ${if (config.matchMode == UnoMatchMode.QUICK) "快速游戏" else "500分积分赛"}",
+        activeColor = activeColor.toTableColor(),
+        activeColorName = activeColor.displayName(),
+        clockwise = direction == UnoDirection.CLOCKWISE,
+        opponents = opponents.map { player ->
+            UnoTablePlayer(player.playerId, player.name, "机器人", player.remainingCardCount, player.score, player.isCurrentPlayer, player.isRoundWinner, player.isMatchWinner)
+        },
+        hand = humanHand.map(UnoCard::toTableCard),
+        legalCardIds = legalCardIds,
+        drawPileCount = drawPileCount,
+        topDiscard = topDiscardCard?.toTableCard(),
+        canDraw = canDraw,
+        canPlayDrawnCard = phase == UnoPhase.AFTER_DRAW && legalCardIds.isNotEmpty(),
+        drawnCardId = legalCardIds.singleOrNull(),
+        canPassAfterDraw = canPassAfterDraw,
+        canDeclareUno = canDeclareUno,
+        canCatchUno = canCatchUno,
+        isActionInProgress = isActionInProgress,
+        isBotThinking = isBotThinking,
+        mustChooseColor = mustChooseColor,
+        localPlayerWon = human?.isRoundWinner == true || human?.isMatchWinner == true,
+        eventMessage = eventMessage,
+        result = if (roundFinished || matchFinished) UnoTableResult(
+            matchFinished = matchFinished,
+            title = if (matchFinished && config.matchMode == UnoMatchMode.POINTS) "UNO 整场结束" else "UNO 本局结束",
+            winnerLine = "$winnerName 获胜 · 本局 ${lastRoundScore}分",
+            ranking = ranking.map { UnoTableRanking(it.name, it.score) },
+            nextLabel = if (matchFinished) if (config.matchMode == UnoMatchMode.QUICK) "再来一局" else "再来一场" else "下一局",
+        ) else null,
     )
 }
 
-@Composable
-private fun UnoActionBar(state: UnoUiState, viewModel: UnoGameViewModel) {
-    Row(
-        Modifier.fillMaxWidth().height(46.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        if (state.canCatchUno) FreshButton("抓 UNO！", viewModel::catchUno, Modifier.width(112.dp).fillMaxHeight(), color = LavenderDeep)
-        if (state.canDeclareUno) FreshButton("UNO！", viewModel::declareUno, Modifier.width(96.dp).fillMaxHeight(), color = PeachDeep)
-        if (state.canDraw) FreshButton("摸一张", viewModel::drawCard, Modifier.width(100.dp).fillMaxHeight(), color = MintDeep)
-        if (state.phase == UnoPhase.AFTER_DRAW && state.legalCardIds.isNotEmpty() && !state.isActionInProgress) {
-            FreshButton(
-                "打出刚摸的牌",
-                { viewModel.playCard(state.legalCardIds.single()) },
-                Modifier.width(142.dp).fillMaxHeight(),
-            )
-        }
-        if (state.canPassAfterDraw) FreshOutlineButton("不出", viewModel::passAfterDraw, Modifier.width(92.dp).fillMaxHeight())
-        if (state.isBotThinking) Text("机器人正在思考…", color = LavenderDeep, fontWeight = FontWeight.Black)
-    }
+private fun UnoColor?.toTableColor(): UnoTableColor = when (this) {
+    UnoColor.RED -> UnoTableColor.RED
+    UnoColor.YELLOW -> UnoTableColor.YELLOW
+    UnoColor.GREEN -> UnoTableColor.GREEN
+    UnoColor.BLUE -> UnoTableColor.BLUE
+    null -> UnoTableColor.WILD
 }
 
-@Composable
-private fun UnoResultPanel(
-    state: UnoUiState,
-    viewModel: UnoGameViewModel,
-    onReturnToUnoHome: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val matchFinished = state.phase == UnoPhase.MATCH_FINISHED
-    val winnerId = if (matchFinished) state.matchWinnerId else state.roundWinnerId
-    val winnerName = state.players.firstOrNull { it.playerId == winnerId }?.name ?: "未知玩家"
-    SoftPanel(modifier.width(560.dp).height(330.dp), tint = Color(0xFAFFFFFF)) {
-        Column(Modifier.fillMaxSize().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                if (matchFinished && state.config.matchMode == UnoMatchMode.POINTS) "UNO 整场结束" else "UNO 本局结束",
-                color = PeachDeep,
-                fontSize = 25.sp,
-                fontWeight = FontWeight.Black,
-            )
-            Text("$winnerName 获胜 · 本局 ${state.lastRoundScore}分", color = Ink, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.height(12.dp))
-            Text("累计排行榜", color = LavenderDeep, fontWeight = FontWeight.Black)
-            state.ranking.forEachIndexed { index, player ->
-                Row(
-                    Modifier.fillMaxWidth().height(34.dp).padding(vertical = 2.dp).clip(RoundedCornerShape(12.dp))
-                        .background(if (index == 0) Sunny.copy(alpha = 0.4f) else Lavender.copy(alpha = 0.18f))
-                        .padding(horizontal = 14.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text("${index + 1}", color = if (index == 0) PeachDeep else LavenderDeep, fontWeight = FontWeight.Black)
-                    Spacer(Modifier.width(12.dp))
-                    Text(player.name, Modifier.weight(1f), color = Ink, fontWeight = FontWeight.Bold)
-                    Text("${player.score}分", color = MintDeep, fontWeight = FontWeight.Black)
-                }
-            }
-            Spacer(Modifier.weight(1f))
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                FreshOutlineButton("返回UNO首页", onReturnToUnoHome, Modifier.width(150.dp).height(43.dp))
-                if (matchFinished) {
-                    FreshButton(
-                        if (state.config.matchMode == UnoMatchMode.QUICK) "再来一局" else "再来一场",
-                        viewModel::restartMatch,
-                        Modifier.width(145.dp).height(43.dp),
-                    )
-                } else {
-                    FreshButton("下一局", viewModel::startNextRound, Modifier.width(145.dp).height(43.dp))
-                }
-            }
-        }
-    }
+private fun UnoTableColor.toCoreColor(): UnoColor = when (this) {
+    UnoTableColor.RED -> UnoColor.RED
+    UnoTableColor.YELLOW -> UnoColor.YELLOW
+    UnoTableColor.GREEN -> UnoColor.GREEN
+    UnoTableColor.BLUE -> UnoColor.BLUE
+    UnoTableColor.WILD -> error("万能色不能作为选择结果")
 }

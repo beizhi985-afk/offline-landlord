@@ -2,6 +2,7 @@ package com.offlinelandlord.game.uno.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -17,6 +18,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -76,5 +78,61 @@ fun UnoTablePileLabel(label: String, count: Int? = null, modifier: Modifier = Mo
     Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
         Text(label, color = Ink, fontSize = 10.sp, fontWeight = FontWeight.Bold)
         count?.let { Text("$it 张", color = MutedInk, fontSize = 9.sp) }
+    }
+}
+
+enum class UnoTableColor { RED, YELLOW, GREEN, BLUE, WILD }
+
+data class UnoTableCard(
+    val cardId: String,
+    val color: UnoTableColor,
+    val label: String,
+    val isWild: Boolean = false,
+)
+
+fun UnoTableColor.toDisplayColor(): Color = when (this) {
+    UnoTableColor.RED -> Color(0xFFE95D67)
+    UnoTableColor.YELLOW -> Color(0xFFF2C94C)
+    UnoTableColor.GREEN -> Color(0xFF45A66F)
+    UnoTableColor.BLUE -> Color(0xFF4B86E8)
+    UnoTableColor.WILD -> Color(0xFF3F4356)
+}
+
+@Composable
+fun UnoTableCardView(
+    card: UnoTableCard,
+    enabled: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val color = card.color.toDisplayColor()
+    Box(
+        modifier = modifier
+            .alpha(if (enabled) 1f else 0.48f)
+            .clip(RoundedCornerShape(13.dp))
+            .background(color)
+            .border(3.dp, Color.White.copy(alpha = 0.94f), RoundedCornerShape(13.dp))
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(5.dp),
+    ) {
+        Text(card.label, color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Black)
+        Box(
+            modifier = Modifier.align(Alignment.Center).fillMaxWidth(0.72f).fillMaxHeight(0.72f)
+                .clip(RoundedCornerShape(50)).background(Color.White.copy(alpha = 0.90f)),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (card.isWild) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Row {
+                        listOf(UnoTableColor.RED, UnoTableColor.YELLOW, UnoTableColor.GREEN, UnoTableColor.BLUE).forEach {
+                            Box(Modifier.padding(1.dp).width(7.dp).height(7.dp).clip(RoundedCornerShape(50)).background(it.toDisplayColor()))
+                        }
+                    }
+                    Text(card.label, color = Color(0xFF343746), fontSize = 14.sp, fontWeight = FontWeight.Black)
+                }
+            } else {
+                Text(card.label, color = color, fontSize = if (card.label.length > 2) 19.sp else 27.sp, fontWeight = FontWeight.Black)
+            }
+        }
     }
 }

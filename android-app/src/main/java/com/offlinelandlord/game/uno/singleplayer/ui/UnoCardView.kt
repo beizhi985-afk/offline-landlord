@@ -1,31 +1,14 @@
 package com.offlinelandlord.game.uno.singleplayer.ui
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.offlinelandlord.game.uno.core.UnoCard
 import com.offlinelandlord.game.uno.core.UnoCardType
 import com.offlinelandlord.game.uno.core.UnoColor
+import com.offlinelandlord.game.uno.ui.UnoTableCard
+import com.offlinelandlord.game.uno.ui.UnoTableCardView
+import com.offlinelandlord.game.uno.ui.UnoTableColor
 
 @Composable
 fun UnoCardView(
@@ -34,47 +17,21 @@ fun UnoCardView(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val color = card.color.toCardColor()
-    val label = card.displayLabel()
-    Box(
-        modifier = modifier
-            .alpha(if (enabled) 1f else 0.48f)
-            .clip(RoundedCornerShape(13.dp))
-            .background(color)
-            .border(3.dp, Color.White.copy(alpha = 0.94f), RoundedCornerShape(13.dp))
-            .clickable(enabled = enabled, onClick = onClick)
-            .padding(5.dp),
-    ) {
-        Text(label, color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Black)
-        Box(
-            modifier = Modifier
-                .align(Alignment.Center)
-                .fillMaxSize(0.72f)
-                .clip(RoundedCornerShape(50))
-                .background(Color.White.copy(alpha = 0.90f)),
-            contentAlignment = Alignment.Center,
-        ) {
-            if (card.type == UnoCardType.WILD || card.type == UnoCardType.WILD_DRAW_FOUR) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                        listOf(UnoColor.RED, UnoColor.YELLOW, UnoColor.GREEN, UnoColor.BLUE).forEach {
-                            Box(Modifier.size(7.dp).clip(CircleShape).background(it.toCardColor()))
-                        }
-                    }
-                    Text(label, color = Color(0xFF343746), fontSize = 14.sp, fontWeight = FontWeight.Black)
-                }
-            } else {
-                Text(
-                    label,
-                    color = color,
-                    fontSize = if (label.length > 2) 19.sp else 27.sp,
-                    fontWeight = FontWeight.Black,
-                    textAlign = TextAlign.Center,
-                )
-            }
-        }
-    }
+    UnoTableCardView(card.toTableCard(), enabled, onClick, modifier)
 }
+
+fun UnoCard.toTableCard(): UnoTableCard = UnoTableCard(
+    cardId = cardId,
+    color = when (color) {
+        UnoColor.RED -> UnoTableColor.RED
+        UnoColor.YELLOW -> UnoTableColor.YELLOW
+        UnoColor.GREEN -> UnoTableColor.GREEN
+        UnoColor.BLUE -> UnoTableColor.BLUE
+        null -> UnoTableColor.WILD
+    },
+    label = displayLabel(),
+    isWild = type == UnoCardType.WILD || type == UnoCardType.WILD_DRAW_FOUR,
+)
 
 fun UnoCard.displayLabel(): String = when (type) {
     UnoCardType.NUMBER -> requireNotNull(number).toString()
