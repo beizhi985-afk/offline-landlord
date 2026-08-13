@@ -22,6 +22,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.offlinelandlord.game.ui.theme.Ink
@@ -38,24 +39,37 @@ fun UnoTableOpponentCard(
     remainingCardCount: Int,
     isCurrentPlayer: Boolean,
     score: Int? = null,
+    cardHeight: Dp = 72.dp,
+    compact: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     Row(
         modifier
-            .height(72.dp)
+            .height(cardHeight)
             .clip(RoundedCornerShape(20.dp))
             .background(if (isCurrentPlayer) Sunny.copy(alpha = 0.48f) else Color(0xDFFFFFFF))
             .border(if (isCurrentPlayer) 2.dp else 1.dp, if (isCurrentPlayer) PeachDeep else Color.White, RoundedCornerShape(20.dp))
-            .padding(8.dp),
+            .padding(if (compact) 5.dp else 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        UnoTableCardBack(Modifier.width(38.dp).fillMaxHeight())
-        Spacer(Modifier.width(8.dp))
-        Column(Modifier.width(68.dp)) {
-            Text(name, color = Ink, fontWeight = FontWeight.Black, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(role, color = LavenderDeep, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-            Text("背面牌 × $remainingCardCount", color = MutedInk, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-            score?.let { Text("累计 $it 分", color = MutedInk, fontSize = 9.sp) }
+        UnoTableCardBack(Modifier.width(if (compact) 28.dp else 38.dp).fillMaxHeight())
+        Spacer(Modifier.width(if (compact) 5.dp else 8.dp))
+        Column(Modifier.width(if (compact) 108.dp else 68.dp)) {
+            Text(name, color = Ink, fontSize = if (compact) 11.sp else 14.sp, fontWeight = FontWeight.Black, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            if (compact) {
+                Text(
+                    "$role · 背面牌 × $remainingCardCount${score?.let { " · 累计 $it 分" }.orEmpty()}",
+                    color = MutedInk,
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            } else {
+                Text(role, color = LavenderDeep, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                Text("背面牌 × $remainingCardCount", color = MutedInk, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                score?.let { Text("累计 $it 分", color = MutedInk, fontSize = 9.sp) }
+            }
         }
     }
 }

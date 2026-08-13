@@ -5,6 +5,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -21,6 +22,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -112,11 +114,26 @@ fun UnoGameTableContent(
     callbacks: UnoTableCallbacks,
     modifier: Modifier = Modifier,
 ) {
-    Box(modifier.fillMaxSize()) {
-        Column(Modifier.fillMaxSize().padding(horizontal = 14.dp, vertical = 8.dp)) {
-            UnoSharedTopBar(state, callbacks.onExit)
+    BoxWithConstraints(modifier.fillMaxSize()) {
+        val metrics = remember(maxWidth, maxHeight, state.opponents.size, state.hand.size) {
+            calculateUnoTableLayoutMetrics(
+                availableWidth = maxWidth.value,
+                availableHeight = maxHeight.value,
+                playerCount = state.opponents.size + 1,
+                localHandCount = state.hand.size,
+            )
+        }
+        Box(Modifier.fillMaxSize()) {
+            Column(
+                Modifier.fillMaxSize().padding(
+                    horizontal = metrics.contentPaddingHorizontal.dp,
+                    vertical = metrics.contentPaddingVertical.dp,
+                ),
+            ) {
+            UnoSharedTopBar(state, callbacks.onExit, metrics)
+            Spacer(Modifier.height(metrics.verticalGap.dp))
             Row(
-                Modifier.fillMaxWidth().height(82.dp),
+                Modifier.fillMaxWidth().height(metrics.opponentAreaHeight.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -127,42 +144,48 @@ fun UnoGameTableContent(
                         remainingCardCount = player.remainingCardCount,
                         isCurrentPlayer = player.isCurrentPlayer,
                         score = player.score,
-                        modifier = Modifier.width(168.dp),
+                        cardHeight = metrics.opponentCardHeight.dp,
+                        compact = metrics.compact,
+                        modifier = Modifier.width(metrics.opponentCardWidth.dp),
                     )
                 }
             }
+            Spacer(Modifier.height(metrics.verticalGap.dp))
             Row(
-                Modifier.fillMaxWidth().height(105.dp),
+                Modifier.fillMaxWidth().height(metrics.centerAreaHeight.dp),
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     UnoTableCardBack(
-                        Modifier.width(58.dp).height(86.dp).clickable(enabled = state.canDraw) { callbacks.onDrawCard() },
+                        Modifier.width(metrics.pileCardWidth.dp).height(metrics.pileCardHeight.dp).clickable(enabled = state.canDraw) { callbacks.onDrawCard() },
                     )
                     Text("牌堆 ${state.drawPileCount}", color = Ink, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                 }
-                Spacer(Modifier.width(22.dp))
+                Spacer(Modifier.width(if (metrics.compact) 14.dp else 22.dp))
                 state.topDiscard?.let { card ->
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        UnoTableCardView(card, enabled = false, onClick = {}, modifier = Modifier.width(62.dp).height(92.dp))
+                        UnoTableCardView(card, enabled = false, onClick = {}, modifier = Modifier.width(metrics.pileCardWidth.dp).height(metrics.pileCardHeight.dp))
                         Text("弃牌顶牌", color = Ink, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
-            UnoSharedActionBar(state, callbacks)
-            Row(Modifier.fillMaxWidth().height(28.dp), verticalAlignment = Alignment.CenterVertically) {
+            Spacer(Modifier.height(metrics.verticalGap.dp))
+            UnoSharedActionBar(state, callbacks, metrics)
+            Spacer(Modifier.height(metrics.verticalGap.dp))
+            Row(Modifier.fillMaxWidth().height(metrics.handHeaderHeight.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    "${state.localPlayerLabel}${if (state.localPlayerWon) " 🏆" else ""} · ${state.hand.size}张",
+                    "${state.localPlayerLabel}的手牌${if (state.localPlayerWon) " 🏆" else ""} · ${state.hand.size}张",
                     color = Ink,
                     fontWeight = FontWeight.Black,
                 )
                 Spacer(Modifier.weight(1f))
                 Text("点击亮起的合法牌出牌", color = MutedInk, fontSize = 10.sp)
             }
+            Spacer(Modifier.height(metrics.verticalGap.dp))
             LazyRow(
-                modifier = Modifier.fillMaxWidth().weight(1f),
-                horizontalArrangement = Arrangement.spacedBy(5.dp, Alignment.CenterHorizontally),
+                modifier = Modifier.fillMaxWidth().height(metrics.handAreaHeight.dp),
+                horizontalArrangement = Arrangement.spacedBy(metrics.handSpacing.dp, Alignment.CenterHorizontally),
                 verticalAlignment = Alignment.Bottom,
             ) {
                 items(state.hand, key = UnoTableCard::cardId) { card ->
@@ -170,24 +193,24 @@ fun UnoGameTableContent(
                         card = card,
                         enabled = card.cardId in state.legalCardIds && !state.isActionInProgress,
                         onClick = { callbacks.onPlayCard(card.cardId) },
-                        modifier = Modifier.width(62.dp).height(96.dp),
+                        modifier = Modifier.width(metrics.handCardWidth.dp).height(metrics.handCardHeight.dp),
                     )
                 }
             }
-        }
+            }
 
-        state.eventMessage?.let { message ->
+            state.eventMessage?.let { message ->
             Box(
-                Modifier.align(Alignment.TopCenter).padding(top = 54.dp).clip(RoundedCornerShape(18.dp))
+                Modifier.align(Alignment.TopCenter).padding(top = metrics.headerHeight.dp + metrics.contentPaddingVertical.dp).clip(RoundedCornerShape(18.dp))
                     .background(Color(0xEFFFFFFF)).border(1.5.dp, Peach, RoundedCornerShape(18.dp))
                     .padding(horizontal = 18.dp, vertical = 8.dp),
             ) { Text(message, color = PeachDeep, fontWeight = FontWeight.Black) }
         }
 
-        state.result?.let { result -> UnoSharedResultPanel(result, callbacks, Modifier.align(Alignment.Center)) }
-    }
+            state.result?.let { result -> UnoSharedResultPanel(result, callbacks, Modifier.align(Alignment.Center), metrics) }
+        }
 
-    if (state.mustChooseColor) {
+        if (state.mustChooseColor) {
         AlertDialog(
             onDismissRequest = {},
             title = { Text("请选择颜色", fontWeight = FontWeight.Black) },
@@ -211,35 +234,36 @@ fun UnoGameTableContent(
             shape = RoundedCornerShape(26.dp),
             containerColor = Color(0xFFFFFBF8),
         )
+        }
     }
 }
 
 @Composable
-private fun UnoSharedTopBar(state: UnoTablePresentationState, onExit: () -> Unit) {
-    Row(Modifier.fillMaxWidth().height(43.dp), verticalAlignment = Alignment.CenterVertically) {
-        FreshOutlineButton("退出", onExit, Modifier.width(78.dp).height(38.dp), color = LavenderDeep)
-        Spacer(Modifier.width(12.dp))
+private fun UnoSharedTopBar(state: UnoTablePresentationState, onExit: () -> Unit, metrics: UnoTableLayoutMetrics) {
+    Row(Modifier.fillMaxWidth().height(metrics.headerHeight.dp), verticalAlignment = Alignment.CenterVertically) {
+        FreshOutlineButton("退出", onExit, Modifier.width(metrics.exitButtonWidth.dp).height(metrics.headerHeight.dp), color = LavenderDeep)
+        Spacer(Modifier.width(if (metrics.compact) 6.dp else 12.dp))
         Column {
-            Text(state.turnText, color = Ink, fontSize = 18.sp, fontWeight = FontWeight.Black)
-            Text(state.roundAndModeText, color = MutedInk, fontSize = 10.sp)
+            Text(state.turnText, color = Ink, fontSize = if (metrics.compact) 16.sp else 18.sp, fontWeight = FontWeight.Black, maxLines = 1)
+            Text(state.roundAndModeText, color = MutedInk, fontSize = if (metrics.compact) 9.sp else 10.sp, maxLines = 1)
         }
         Spacer(Modifier.weight(1f))
         state.roomBadge?.let { badge ->
             Text(badge, color = LavenderDeep, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.width(8.dp))
+            Spacer(Modifier.width(if (metrics.compact) 4.dp else 8.dp))
         }
         state.connectionBadge?.let { badge ->
             Text(badge, color = MintDeep, fontSize = 10.sp, fontWeight = FontWeight.Black)
-            Spacer(Modifier.width(8.dp))
+            Spacer(Modifier.width(if (metrics.compact) 4.dp else 8.dp))
         }
         Box(
             Modifier.clip(RoundedCornerShape(16.dp)).background(state.activeColor.toDisplayColor().copy(alpha = 0.88f))
-                .padding(horizontal = 12.dp, vertical = 6.dp),
+                .padding(horizontal = if (metrics.compact) 8.dp else 12.dp, vertical = if (metrics.compact) 4.dp else 6.dp),
         ) { Text("当前颜色：${state.activeColorName}", color = Color.White, fontWeight = FontWeight.Black) }
-        Spacer(Modifier.width(8.dp))
+        Spacer(Modifier.width(if (metrics.compact) 4.dp else 8.dp))
         Text(
             if (state.clockwise) "↻ 顺时针" else "↺ 逆时针",
-            Modifier.clip(RoundedCornerShape(16.dp)).background(Color(0xDFFFFFFF)).padding(horizontal = 12.dp, vertical = 6.dp),
+            Modifier.clip(RoundedCornerShape(16.dp)).background(Color(0xDFFFFFFF)).padding(horizontal = if (metrics.compact) 8.dp else 12.dp, vertical = if (metrics.compact) 4.dp else 6.dp),
             color = LavenderDeep,
             fontWeight = FontWeight.Black,
         )
@@ -247,9 +271,9 @@ private fun UnoSharedTopBar(state: UnoTablePresentationState, onExit: () -> Unit
 }
 
 @Composable
-private fun UnoSharedActionBar(state: UnoTablePresentationState, callbacks: UnoTableCallbacks) {
+private fun UnoSharedActionBar(state: UnoTablePresentationState, callbacks: UnoTableCallbacks, metrics: UnoTableLayoutMetrics) {
     Row(
-        Modifier.fillMaxWidth().height(46.dp),
+        Modifier.fillMaxWidth().height(metrics.actionAreaHeight.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -265,8 +289,8 @@ private fun UnoSharedActionBar(state: UnoTablePresentationState, callbacks: UnoT
 }
 
 @Composable
-private fun UnoSharedResultPanel(result: UnoTableResult, callbacks: UnoTableCallbacks, modifier: Modifier) {
-    SoftPanel(modifier.width(560.dp).height(330.dp), tint = Color(0xFAFFFFFF)) {
+private fun UnoSharedResultPanel(result: UnoTableResult, callbacks: UnoTableCallbacks, modifier: Modifier, metrics: UnoTableLayoutMetrics) {
+    SoftPanel(modifier.width(if (metrics.compact) 500.dp else 560.dp).height(if (metrics.compact) 300.dp else 330.dp), tint = Color(0xFAFFFFFF)) {
         Column(Modifier.fillMaxSize().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Text(result.title, color = PeachDeep, fontSize = 25.sp, fontWeight = FontWeight.Black)
             Text(result.winnerLine, color = Ink, fontWeight = FontWeight.Bold)
